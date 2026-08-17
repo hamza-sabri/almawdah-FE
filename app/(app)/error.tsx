@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { RotateCcw } from "lucide-react"
+import * as Sentry from "@sentry/nextjs"
 
 /**
  * App-section error boundary with SELF-HEALING for stale deployments.
@@ -20,6 +21,15 @@ export default function AppError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  useEffect(() => {
+    // React error boundaries CATCH render errors, so they never reach
+    // window.onerror and Sentry's automatic handlers never see them. Without
+    // this call a crashing POS screen silently reloads itself in front of the
+    // cashier and reaches nobody — and "Sentry is quiet" stops being evidence
+    // that anything is healthy.
+    Sentry.captureException(error)
+  }, [error])
+
   useEffect(() => {
     const KEY = "pharma_auto_reloaded"
     try {

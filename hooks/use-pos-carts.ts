@@ -5,6 +5,7 @@ import type { Product } from "@/api/generated/model"
 import { cartStateGet, cartStatePut } from "@/api/sales"
 import { cartsApi, convexAccountId, getConvex } from "@/lib/convex"
 import { toNumber } from "@/lib/format"
+import { uuid } from "@/lib/offline/queue"
 
 /**
  * POS carts with parking: several sales can be open at once (a customer walks
@@ -36,6 +37,22 @@ export type CartVariant = {
 
 export type Cart = {
   id: string
+  /**
+   * The idempotency key for THIS cart's checkout, minted when the cart is
+   * created and stable for its whole life.
+   *
+   * It must not be minted per attempt. A cashier on a weak line presses Enter,
+   * sees nothing happen, and presses the button — two POSTs. If each carried
+   * its own client_uuid the server would treat them as two different sales and
+   * record both: stock down twice, and on a credit sale two debts against the
+   * customer. Sharing one key lets the server's unique(store, client_uuid)
+   * constraint collapse them into a single sale and return the winner.
+   *
+   * The cart is closed after a successful checkout, so the next sale gets a
+   * fresh cart and a fresh key — a retry is deduplicated, a genuine second
+   * sale is not.
+   */
+  saleUuid?: string
   customerId: number | null
   customerName: string
   payment: "cash" | "debt"
@@ -59,6 +76,7 @@ function freshCart(): Cart {
   seq += 1
   return {
     id: `c${Date.now()}_${seq}`,
+    saleUuid: uuid(),
     customerId: null,
     customerName: "",
     payment: "cash",
@@ -317,6 +335,27 @@ export function usePosCarts() {
     [activeId],
   )
 
+  /**
+   * The active cart's idempotency key, minting one if it predates this field
+   * (carts restored from localStorage or the server copy after an upgrade).
+   *
+   * Returns synchronously because checkout needs it in the same tick; the
+   * setCarts call just persists it for the next attempt. Two attempts in the
+   * same tick therefore share the value we return here, which is the whole
+   * point.
+   */
+  const ensureSaleUuid = useCallback((): string => {
+    const cart = cartsRef.current.find((c) => c.id === activeIdRef.current)
+    if (cart?.saleUuid) return cart.saleUuid
+    const minted = uuid()
+    if (cart) {
+      setCarts((prev) =>
+        prev.map((c) => (c.id === cart.id ? { ...c, saleUuid: minted } : c)),
+      )
+    }
+    return minted
+  }, [])
+
   const addMedication = useCallback(
     (med: Product, variant?: CartVariant | null) => {
       const variantId = variant?.id ?? null
@@ -448,6 +487,7 @@ export function usePosCarts() {
     activeId,
     setActiveId,
     patchActive,
+    ensureSaleUuid,
     addMedication,
     setQuantity,
     removeLine,

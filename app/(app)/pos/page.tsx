@@ -142,6 +142,21 @@ function receiptFromQueued(
 /** Shared checkout (cart panel + table mode). Online → post + print the
  *  receipt; offline/unreachable → queue for auto-sync and print an "unsynced"
  *  copy so the customer still walks away with a receipt. */
+/**
+ * Carts with a checkout currently in flight.
+ *
+ * The POS mounts THREE independent `useCheckout` mutations — the page (for the
+ * Enter key), the table view's button, and the cart panel's. Each has its own
+ * `isPending`, so `disabled={checkout.isPending}` on one button knows nothing
+ * about a submit the keyboard already started. Module scope is what makes this
+ * guard visible to all three.
+ *
+ * The stable per-cart client_uuid means a double-submit that slips through is
+ * still collapsed server-side; this just stops the pointless second request
+ * and the confusing second toast.
+ */
+const inFlightCarts = new Set<string>()
+
 function useCheckout(pos: Pos, onDone?: () => void) {
   const qc = useQueryClient()
   const { user } = useMe()
@@ -152,15 +167,24 @@ function useCheckout(pos: Pos, onDone?: () => void) {
 
   return useMutation({
     mutationFn: async ({ body, snapshot }: CheckoutInput) => {
-      const res = await submitSale(body, {
-        total: snapshot.total,
-        discountedTotal: snapshot.discountedTotal,
-        isReturn: snapshot.isReturn,
-        paymentMethod: snapshot.paymentMethod,
-        customerName: snapshot.customerName,
-        cashierName,
-      })
-      return { res, snapshot }
+      const key = body.client_uuid ?? ""
+      if (key && inFlightCarts.has(key)) {
+        throw new Error("جارٍ إتمام البيع — انتظر لحظة")
+      }
+      if (key) inFlightCarts.add(key)
+      try {
+        const res = await submitSale(body, {
+          total: snapshot.total,
+          discountedTotal: snapshot.discountedTotal,
+          isReturn: snapshot.isReturn,
+          paymentMethod: snapshot.paymentMethod,
+          customerName: snapshot.customerName,
+          cashierName,
+        })
+        return { res, snapshot }
+      } finally {
+        if (key) inFlightCarts.delete(key)
+      }
     },
     onSuccess: ({ res, snapshot }) => {
       const settings = loadPrintSettings()
@@ -249,6 +273,9 @@ function buildPayload(pos: Pos): CheckoutInput | null {
   const isDebt = !active.isReturn && active.payment === "debt"
   const paymentMethod: "cash" | "debt" = active.isReturn ? "cash" : active.payment
   const body: SalePayload = {
+    // Stable for this cart across every attempt — see Cart.saleUuid. Without
+    // it, a retry becomes a second sale instead of being collapsed server-side.
+    client_uuid: pos.ensureSaleUuid(),
     customer: isDebt ? (active.customerId ?? undefined) : undefined,
     payment_method: paymentMethod,
     is_return: active.isReturn || undefined,

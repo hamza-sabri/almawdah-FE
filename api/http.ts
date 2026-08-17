@@ -10,6 +10,7 @@ import { mockFetch } from "@/lib/demo/mock-backend"
 import { isOfflineEnabled } from "@/lib/offline/enabled"
 import { canAutoDownload, isManualSyncing } from "@/lib/offline/sync-mode"
 import { cacheReadResponse, localReadResponse } from "@/lib/offline/reads"
+import { refreshOfflineCredentialTokens } from "@/lib/offline/credential"
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://alrahmah.store.clinixa.cloud"
@@ -53,10 +54,32 @@ async function tryRefresh(): Promise<RefreshResult> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh }),
       })
+      // "rejected" clears the tokens and hard-redirects to /login, so only a
+      // real verdict from the auth endpoint earns it. A 502/504 from Traefik
+      // during a redeploy, or a captive portal's HTML, is a transport problem
+      // — treating it as a dead session logs out every till in the shop.
+      // Access tokens last 60 min, so a 20-second redeploy is very likely to
+      // land inside somebody's refresh.
+      if (res.status >= 500 || res.status === 408 || res.status === 429) {
+        return "offline"
+      }
       if (!res.ok) return "rejected"
-      const data = (await res.json()) as { access: string; refresh?: string }
+      let data: { access?: string; refresh?: string } | null = null
+      try {
+        data = (await res.json()) as { access: string; refresh?: string }
+      } catch {
+        // 200 with a non-JSON body = something answered for the server
+        // (captive portal, proxy error page). Not a rejection.
+        return "offline"
+      }
       if (!data?.access) return "rejected"
       setTokens(data.access, data.refresh ?? refresh)
+      // The backend rotates refresh tokens and blacklists the old one. The
+      // offline-unlock blob still holds the pair captured at login, so without
+      // this the cashier "unlocks offline" tomorrow with a token that was
+      // blacklisted on its first rotation — and is thrown to /login the moment
+      // the network returns, before anything syncs.
+      void refreshOfflineCredentialTokens(data.access, data.refresh ?? refresh)
       return "ok"
     } catch {
       return "offline"

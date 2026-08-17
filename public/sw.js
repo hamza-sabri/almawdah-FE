@@ -83,6 +83,10 @@ async function warmAssetsFrom(html, cache) {
   )
 }
 
+// Without /pos cached there is no working POS offline, so it is the one route
+// whose failure must abort the install.
+const ESSENTIAL_ROUTE = "/pos"
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
@@ -100,6 +104,15 @@ self.addEventListener("install", (event) => {
           }
         }),
       )
+      // Every fetch above is allowSettled + try/catch, so the install would
+      // otherwise "succeed" having downloaded nothing — and activate would
+      // then delete the previous version's caches. Deploy day on a weak shop
+      // connection would leave the till with NO offline shell at all, which
+      // only shows up hours later when the internet actually drops.
+      // Throwing here keeps the old worker (and its caches) in charge.
+      if (!(await nav.match(ESSENTIAL_ROUTE))) {
+        throw new Error("precache failed: /pos unavailable, keeping old worker")
+      }
       await self.skipWaiting()
     })(),
   )
@@ -108,8 +121,15 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      const keys = await caches.keys()
-      await Promise.all(keys.filter((k) => !KEEP.has(k)).map((k) => caches.delete(k)))
+      // Belt and braces: only bin the old caches once this version's shell is
+      // demonstrably present.
+      const nav = await caches.open(NAV_CACHE)
+      if (await nav.match(ESSENTIAL_ROUTE)) {
+        const keys = await caches.keys()
+        await Promise.all(
+          keys.filter((k) => !KEEP.has(k)).map((k) => caches.delete(k)),
+        )
+      }
       await self.clients.claim()
     })(),
   )
@@ -142,8 +162,15 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         try {
           const fresh = await fetch(req)
-          const cache = await caches.open(NAV_CACHE)
-          cache.put(req, fresh.clone())
+          // Only cache a real page. A 502/504 from Traefik mid-deploy, or a
+          // Next 500, would otherwise become THIS route's offline copy — and
+          // the till would serve an error page as the POS the next time the
+          // internet dropped. `type === "basic"` also skips opaque redirects,
+          // which cache.put rejects.
+          if (fresh.ok && fresh.type === "basic") {
+            const cache = await caches.open(NAV_CACHE)
+            cache.put(req, fresh.clone()).catch(() => {})
+          }
           return fresh
         } catch {
           // Offline: serve THIS route's cached HTML if we have it. Never fall
