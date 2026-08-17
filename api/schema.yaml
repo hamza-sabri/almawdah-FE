@@ -929,6 +929,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/Debt'
           description: ''
+  /api/v1/export/:
+    get:
+      operationId: export_retrieve
+      description: |-
+        GET /export/?dataset=products|sales — the FULL dataset as xlsx.
+
+        Distinct from /reports/export/, which produces an *analysis* — filtered,
+        ranked and capped. This one is a plain dump of everything the store owns,
+        for handing to an accountant or moving to another system. No limit, no
+        aggregation.
+
+        Written with openpyxl's write_only workbook and a queryset iterator, so
+        145k sales stream out a row at a time instead of building the whole sheet
+        in memory first.
+      tags:
+      - export
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/import/hesabate/products/:
     post:
       operationId: import_hesabate_products_create

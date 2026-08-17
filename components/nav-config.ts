@@ -7,7 +7,6 @@ import {
   ShoppingBag,
   ChartPie,
   FileUp,
-  GraduationCap,
   type LucideIcon,
 } from "lucide-react"
 
@@ -69,16 +68,6 @@ export const NAV_ITEMS: NavItem[] = [
     module: "imports",
     // Imports rewrite the catalogue — owner-only (enforced server-side too).
     ownerOnly: true,
-  },
-  {
-    // Interactive, animated walkthroughs of every flow — runs in a safe demo
-    // sandbox, always available to everyone (no module gate, no owner lock).
-    // Desktop: in the sidebar. Mobile: a button in the top bar (NOT the bottom
-    // nav) — see components/top-bar.tsx.
-    href: "/guide",
-    label: "الدليل التفاعلي",
-    icon: GraduationCap,
-    desktopOnly: true,
   },
 ]
 

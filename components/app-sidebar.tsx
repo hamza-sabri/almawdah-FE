@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
-import { Lock, LogOut, PanelLeft, QrCode, Settings } from "lucide-react"
+import { Download, Lock, LogOut, PanelLeft, Settings } from "lucide-react"
 import { toast } from "sonner"
 
 import { logout } from "@/lib/auth"
@@ -13,7 +13,7 @@ import { useIsOwner, useNavItemsWithLock } from "@/lib/modules"
 import { useLockedFeature } from "@/components/locked-feature"
 import { BrandLockup, BrandMark } from "@/components/brand"
 import { ConfirmDelete } from "@/components/confirm-delete"
-import { PriceQrDialog } from "@/components/reports/price-qr-card"
+import { ExportDialog } from "@/components/export-dialog"
 import {
   Tooltip,
   TooltipContent,
@@ -30,7 +30,7 @@ export function AppSidebar() {
   const qc = useQueryClient()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-  const [qrOpen, setQrOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   // Collapsed (icons only) by default; expand is temporary — any navigation
   // re-collapses it so the rail stays out of the way on small screens.
   const [collapsed, setCollapsed] = useState(true)
@@ -158,19 +158,21 @@ export function AppSidebar() {
           })}
         </nav>
 
-        {/* Footer utilities — QR, Settings, logout. Scan + theme moved to the
-            bottom nav / Settings respectively. The QR is open to all staff:
-            it's a poster for customers, not a management report. */}
+        {/* Footer utilities — Export, Settings, logout. Scan + theme moved to
+            the bottom nav / Settings respectively. Export is a full dump of the
+            store's own data, so it's owner-only (enforced server-side too). */}
         <div className={cn("pb-3.5 pt-2", collapsed ? "px-2" : "px-3.5")}>
-          <button
-            type="button"
-            onClick={() => setQrOpen(true)}
-            title={collapsed ? "QR صفحة الأسعار" : undefined}
-            className={rowCls()}
-          >
-            <QrCode className="size-5 shrink-0" />
-            {!collapsed && <span>QR صفحة الأسعار</span>}
-          </button>
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              title={collapsed ? "تصدير البيانات" : undefined}
+              className={rowCls()}
+            >
+              <Download className="size-5 shrink-0" />
+              {!collapsed && <span>تصدير البيانات</span>}
+            </button>
+          )}
           <Link href="/settings" title={collapsed ? "الإعدادات" : undefined} className={rowCls()}>
             <Settings className="size-5 shrink-0" />
             {!collapsed && <span>الإعدادات</span>}
@@ -195,7 +197,7 @@ export function AppSidebar() {
             confirmLabel="تسجيل الخروج"
             confirmIcon={<LogOut className="size-4" />}
           />
-          <PriceQrDialog open={qrOpen} onOpenChange={setQrOpen} />
+          <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
           {!collapsed && (
             <p className="pt-2 text-center text-[10px] tracking-wide text-white/35">
               نظام إدارة المتجر

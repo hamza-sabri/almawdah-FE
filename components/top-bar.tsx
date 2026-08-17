@@ -81,17 +81,6 @@ export function TopBar() {
         {/* Scan lives in the bottom nav on mobile — desktop only here. */}
         <GlobalScanButton variant="chrome" className="hidden md:inline-flex" />
 
-        {/* Mobile: interactive guide — sits at the top next to the QR
-            generator, NOT in the bottom nav. */}
-        <Link
-          href="/guide"
-          aria-label="الدليل التفاعلي"
-          title="الدليل التفاعلي"
-          className="flex size-9 items-center justify-center rounded-full bg-card shadow-sm ring-1 ring-border transition hover:bg-muted md:hidden"
-        >
-          <GraduationCap className="size-4.5" />
-        </Link>
-
         {/* Mobile: the price-page QR sits right next to the profile circle.
             Available to EVERY signed-in member of staff, not just the owner —
             it's a poster to hand a customer, not a management report. */}
