@@ -66,7 +66,7 @@ export function PrintReceiptDialog({
 }) {
   const { user } = useMe()
   const me = user as { pharmacy_name?: string; pharmacy_logo?: string } | undefined
-  const pharmacyName = me?.pharmacy_name?.trim() || "فارما"
+  const pharmacyName = me?.pharmacy_name?.trim() || "المودة"
   const pharmacyLogo = me?.pharmacy_logo || ""
   const cashierName = displayName(user)
 

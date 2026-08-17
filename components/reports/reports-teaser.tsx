@@ -21,7 +21,7 @@ const FAKE_BARS = [34, 58, 41, 72, 55, 89, 63, 95, 70, 82, 60, 91]
 
 const WHATSAPP_URL =
   "https://wa.me/972597968056?text=" +
-  encodeURIComponent("مرحباً، أرغب بتفعيل ميزة التقارير والتحليلات في فارما 📊")
+  encodeURIComponent("مرحباً، أرغب بتفعيل ميزة التقارير والتحليلات 📊")
 
 export function LockedReportsTeaser({
   title = "التقارير والتحليلات المتقدمة",

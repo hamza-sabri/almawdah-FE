@@ -13,7 +13,7 @@ import { currentSlug } from "@/lib/tenant.server"
  *
  * WHITE-LABELLED PER TENANT: the installed app is named after the store
  * and carries its logo (rendered to square PNGs by the backend), so "Add to
- * Home Screen" installs "متجر الحياة", not a generic "فارما". Falls back
+ * Home Screen" installs the store's own name, not a generic one. Falls back
  * to the Pharma brand when the tenant has no name/logo (or on the central
  * site). A route handler instead of app/manifest.ts because the branding is
  * fetched at request time (ISR, hourly) — not frozen at build.

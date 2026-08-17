@@ -6,7 +6,8 @@ import Script from "next/script"
  * NEXT_PUBLIC_CLARITY_ID (a build arg in Dokploy). There is deliberately no
  * default: a tenant deployed without an id records nothing, rather than
  * silently mixing its sessions into another store's project.
- *   alrahmah → xha416o7ja   alhiah → xjagu3xmyn   alzahra → xt2wjm0jja
+ * Each deployment MUST have its own project id — reusing another store's id
+ * mixes two shops' session recordings into one dashboard.
  */
 const CLARITY_ID = process.env.NEXT_PUBLIC_CLARITY_ID
 

@@ -53,7 +53,8 @@ export function PrintSettingsDialog({
         pharmacy_logo?: string
       }
     | undefined
-  // Header name + logo come from the account (backend), defaulting to "فارما".
+  // Header name + logo come from the account (backend); the fallback is
+  // the deployment brand.
   const pharmacyName = me?.pharmacy_name?.trim() || "فارما"
   const pharmacyLogo = me?.pharmacy_logo || ""
   const [s, setS] = useState<PrintSettings>(loadPrintSettings)

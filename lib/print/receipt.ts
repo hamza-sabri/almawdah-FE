@@ -264,9 +264,10 @@ export function printReceipt(
   logoUrl = "",
 ): void {
   const s = settings ?? loadPrintSettings()
-  // Name comes from the account's store (backend), defaulting to "فارما".
+  // Name comes from the account's store (backend); the fallback is the
+  // deployment brand so a receipt never prints another product's name.
   // Never a hardcoded/stale value.
-  const name = (pharmacyName || "").trim() || "فارما"
+  const name = (pharmacyName || "").trim() || "المودة"
   const paper = s.paper === "58" ? 58 : 80
   printHtml(
     receiptBodyHtml(data, name, s, logoUrl),

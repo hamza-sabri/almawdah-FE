@@ -1,6 +1,6 @@
 /**
  * Per-tenant branding — each store's own NAME + LOGO everywhere the app
- * chrome used to say "فارما".
+ * chrome used to say the vendor brand.
  *
  * Source of truth is the backend's public branding endpoint (name + logo by
  * slug, nothing sensitive), so this works logged-out too (login page, PWA
@@ -22,7 +22,7 @@ import { getPharmacySlug } from "@/lib/site"
 
 export type Branding = { name: string; logo: string }
 
-export const DEFAULT_BRAND_NAME = "سوبر ماركت المودة"
+export const DEFAULT_BRAND_NAME = "المودة"
 export const DEFAULT_ICON_192 = "/icons/icon-192.png"
 export const DEFAULT_ICON_512 = "/icons/icon-512.png"
 export const DEFAULT_ICON_MASKABLE = "/icons/icon-maskable-512.png"

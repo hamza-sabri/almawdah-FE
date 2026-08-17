@@ -29,7 +29,7 @@ const mono = IBM_Plex_Mono({
 })
 
 // White-labelled per tenant: tab title, icons, and the iOS install name all
-// carry the store's own brand ("فارما" when unset / on the central site).
+// carry the store's own brand (the deployment default when unset).
 // Fetched with ISR — refreshed hourly, safe default if the backend is
 // unreachable (e.g. during the Docker build).
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
   // Host header, or every store gets the generic brand.
   const slug = await currentSlug()
   const branding = await fetchBranding({ slug })
-  const name = branding?.name?.trim() || 'فارما'
+  const name = branding?.name?.trim() || 'المودة'
   const hasLogo = Boolean(branding?.logo)
   return {
     title: `${name} — لوحة التحكم`,

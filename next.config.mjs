@@ -41,8 +41,11 @@ const nextConfig = {
 // real code instead of minified bundles. Only uploads when SENTRY_AUTH_TOKEN is
 // present, so local builds and CI without the secret are unaffected.
 export default withSentryConfig(nextConfig, {
-  org: "broken-dudes",
-  project: "pharma-frontend",
+  // Which Sentry project the source maps upload to. Hardcoding it meant this
+  // build shipped its maps to the PHARMACY's project. Env-driven, with this
+  // deployment's own project as the default.
+  org: process.env.SENTRY_ORG || "broken-dudes",
+  project: process.env.SENTRY_PROJECT || "almawdah-frontend",
   // Quiet build logs; set SENTRY_AUTH_TOKEN in the deploy env to enable upload.
   silent: true,
   widenClientFileUpload: true,

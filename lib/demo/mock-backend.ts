@@ -292,7 +292,7 @@ const demoUser = {
   is_staff: false,
   date_joined: now(),
   store: 0,
-  pharmacy_name: "فارما",
+  pharmacy_name: "المودة",
   store_slug: "demo",
   pharmacy_phone: "",
   pharmacy_address: "",
