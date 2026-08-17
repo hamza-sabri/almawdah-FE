@@ -1,0 +1,94 @@
+<svg viewBox="0 0 660 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Store 3D icon">
+<!--
+  ANIMATABLE PARTS (each has an id):
+  #bg  #cardShadow  #card( #frameBack #frame #window #awning(#awningTop #awningValance) #pillBlue #pillPink )
+  #spheres( #sphOrange1 #sphGreen #sphPurple #sphOrange2 #dotPurple #dotOrange )
+-->
+<defs>
+  <filter id="bS" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2.4"/></filter>
+  <filter id="bM" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="7"/></filter>
+  <filter id="bL" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="16"/></filter>
+
+  <linearGradient id="gFrame" gradientUnits="userSpaceOnUse" x1="215" y1="60" x2="440" y2="330"><stop offset="0" stop-color="#4E78EE"/><stop offset=".5" stop-color="#2F53CE"/><stop offset="1" stop-color="#213C9E"/></linearGradient>
+  <linearGradient id="gWin" gradientUnits="userSpaceOnUse" x1="245" y1="96" x2="405" y2="306"><stop offset="0" stop-color="#E9DAEE"/><stop offset="1" stop-color="#CBB4DB"/></linearGradient>
+  <linearGradient id="gAwnTop" gradientUnits="userSpaceOnUse" x1="235" y1="74" x2="235" y2="100"><stop offset="0" stop-color="#8977E6"/><stop offset="1" stop-color="#6250C8"/></linearGradient>
+  <linearGradient id="gAwnVal" gradientUnits="userSpaceOnUse" x1="235" y1="100" x2="235" y2="132"><stop offset="0" stop-color="#93D6F2"/><stop offset="1" stop-color="#5FA6D8"/></linearGradient>
+  <linearGradient id="gBlue" gradientUnits="userSpaceOnUse" x1="258" y1="163" x2="330" y2="207"><stop offset="0" stop-color="#5570E6"/><stop offset="1" stop-color="#2E44C0"/></linearGradient>
+  <linearGradient id="gWhite" gradientUnits="userSpaceOnUse" x1="300" y1="163" x2="386" y2="210"><stop offset="0" stop-color="#FBFCFF"/><stop offset="1" stop-color="#DCE0EC"/></linearGradient>
+  <linearGradient id="gPink" gradientUnits="userSpaceOnUse" x1="330" y1="192" x2="404" y2="236"><stop offset="0" stop-color="#F0679B"/><stop offset="1" stop-color="#D22C6A"/></linearGradient>
+  <radialGradient id="gOrange" cx=".36" cy=".30" r=".8"><stop offset="0" stop-color="#FFCE84"/><stop offset=".5" stop-color="#F3963C"/><stop offset="1" stop-color="#DC722A"/></radialGradient>
+  <radialGradient id="gGreen" cx=".36" cy=".30" r=".8"><stop offset="0" stop-color="#7FE6BE"/><stop offset=".5" stop-color="#33B98D"/><stop offset="1" stop-color="#1C8E6A"/></radialGradient>
+  <radialGradient id="gPurple" cx=".36" cy=".30" r=".8"><stop offset="0" stop-color="#BEAEF7"/><stop offset=".5" stop-color="#8371E8"/><stop offset="1" stop-color="#5E49C8"/></radialGradient>
+
+  <clipPath id="clFrame"><rect x="207" y="44" width="236" height="286" rx="46"/></clipPath>
+  <clipPath id="clWin"><rect x="245" y="96" width="160" height="210" rx="28"/></clipPath>
+  <clipPath id="clAwn"><path d="M233,100 L417,100 L417,104 a18,20 0 0 1 -36,0 a18,20 0 0 1 -37,0 a18,20 0 0 1 -37,0 a18,20 0 0 1 -37,0 a18,20 0 0 1 -37,0 Z"/></clipPath>
+  <clipPath id="clPillB"><rect x="258" y="163" width="128" height="44" rx="22"/></clipPath>
+  <clipPath id="clPillP"><rect x="276" y="192" width="128" height="44" rx="22"/></clipPath>
+</defs>
+
+<rect id="bg" x="0" y="0" width="660" height="360" fill="#F1F0F6"/>
+
+<ellipse id="cardShadow" cx="330" cy="322" rx="150" ry="30" fill="#3a3568" opacity="0.20" filter="url(#bL)"/>
+
+<g id="card" transform="rotate(-8 325 187)">
+  <!-- 3D thickness -->
+  <rect id="frameBack" x="214" y="55" width="236" height="286" rx="46" fill="#1E2F8C"/>
+  <!-- front frame -->
+  <rect id="frame" x="207" y="44" width="236" height="286" rx="46" fill="url(#gFrame)"/>
+  <g clip-path="url(#clFrame)">
+    <ellipse cx="250" cy="80" rx="150" ry="46" fill="#ffffff" opacity="0.20" filter="url(#bM)"/>
+    <ellipse cx="420" cy="312" rx="120" ry="90" fill="#182373" opacity="0.40" filter="url(#bL)"/>
+  </g>
+
+  <!-- window -->
+  <rect id="window" x="245" y="96" width="160" height="210" rx="28" fill="url(#gWin)"/>
+  <g clip-path="url(#clWin)">
+    <ellipse cx="325" cy="112" rx="96" ry="26" fill="#7C5FA8" opacity="0.35" filter="url(#bM)"/>
+    <ellipse cx="325" cy="300" rx="90" ry="24" fill="#ffffff" opacity="0.40" filter="url(#bM)"/>
+  </g>
+
+  <!-- pills -->
+  <g id="pillPink" transform="rotate(-18 340 214)">
+    <ellipse cx="340" cy="216" rx="66" ry="24" fill="#3a2b55" opacity="0.16" filter="url(#bM)"/>
+    <g clip-path="url(#clPillP)">
+      <rect x="276" y="192" width="64" height="44" fill="url(#gWhite)"/>
+      <rect x="340" y="192" width="64" height="44" fill="url(#gPink)"/>
+      <line x1="340" y1="194" x2="340" y2="234" stroke="#b9b0c9" stroke-width="1.5" opacity="0.5"/>
+      <ellipse cx="315" cy="202" rx="52" ry="10" fill="#ffffff" opacity="0.40" filter="url(#bS)"/>
+      <ellipse cx="384" cy="228" rx="20" ry="7" fill="#9c1e50" opacity="0.35" filter="url(#bS)"/>
+    </g>
+  </g>
+  <g id="pillBlue" transform="rotate(-18 322 185)">
+    <g clip-path="url(#clPillB)">
+      <rect x="258" y="163" width="64" height="44" fill="url(#gBlue)"/>
+      <rect x="322" y="163" width="64" height="44" fill="url(#gWhite)"/>
+      <line x1="322" y1="165" x2="322" y2="205" stroke="#b9b0c9" stroke-width="1.5" opacity="0.5"/>
+      <ellipse cx="296" cy="173" rx="52" ry="10" fill="#ffffff" opacity="0.42" filter="url(#bS)"/>
+      <ellipse cx="300" cy="171" rx="16" ry="5" fill="#ffffff" opacity="0.8" filter="url(#bS)"/>
+    </g>
+  </g>
+
+  <!-- awning -->
+  <g id="awning">
+    <ellipse cx="325" cy="112" rx="96" ry="12" fill="#241b52" opacity="0.22" filter="url(#bM)"/>
+    <g id="awningValance" clip-path="url(#clAwn)">
+      <rect x="233" y="98" width="184" height="36" fill="url(#gAwnVal)"/>
+      <ellipse cx="300" cy="104" rx="110" ry="8" fill="#ffffff" opacity="0.35" filter="url(#bS)"/>
+      <ellipse cx="325" cy="126" rx="100" ry="7" fill="#2f6f9c" opacity="0.30" filter="url(#bS)"/>
+    </g>
+    <rect id="awningTop" x="231" y="74" width="188" height="28" rx="11" fill="url(#gAwnTop)"/>
+    <ellipse cx="300" cy="82" rx="120" ry="7" fill="#ffffff" opacity="0.28" filter="url(#bS)"/>
+  </g>
+</g>
+
+<!-- floating spheres -->
+<g id="spheres">
+  <g id="sphOrange1"><ellipse cx="252" cy="118" rx="18" ry="6" fill="#8a83b0" opacity="0.18" filter="url(#bS)"/><circle cx="250" cy="96" r="22" fill="url(#gOrange)"/><circle cx="243" cy="88" r="6" fill="#ffffff" opacity="0.6"/></g>
+  <g id="sphGreen"><ellipse cx="152" cy="212" rx="22" ry="7" fill="#8a83b0" opacity="0.18" filter="url(#bS)"/><circle cx="150" cy="182" r="27" fill="url(#gGreen)"/><circle cx="141" cy="172" r="7" fill="#ffffff" opacity="0.55"/></g>
+  <g id="sphPurple"><circle cx="206" cy="280" r="13" fill="url(#gPurple)"/><circle cx="202" cy="275" r="4" fill="#ffffff" opacity="0.6"/></g>
+  <g id="sphOrange2"><ellipse cx="478" cy="280" rx="24" ry="7" fill="#8a83b0" opacity="0.18" filter="url(#bS)"/><circle cx="476" cy="250" r="27" fill="url(#gOrange)"/><circle cx="467" cy="240" r="7" fill="#ffffff" opacity="0.6"/></g>
+  <circle id="dotPurple" cx="455" cy="120" r="9" fill="url(#gPurple)"/>
+  <circle id="dotOrange" cx="352" cy="300" r="7" fill="url(#gOrange)"/>
+</g>
+</svg>

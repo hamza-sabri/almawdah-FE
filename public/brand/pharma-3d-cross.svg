@@ -1,0 +1,25 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pharma 3D cross">
+  <title>Pharma — 3D clay cross (standalone)</title>
+  <defs>
+    <filter id="s" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="m" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="11"/></filter>
+    <filter id="l" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="20"/></filter>
+    <linearGradient id="gi" gradientUnits="userSpaceOnUse" x1="120" y1="120" x2="392" y2="392">
+      <stop offset="0" stop-color="#928FFA"/><stop offset="0.5" stop-color="#6A5FE0"/><stop offset="1" stop-color="#4635B6"/>
+    </linearGradient>
+    <radialGradient id="gsph" cx="0.38" cy="0.34" r="0.75"><stop offset="0" stop-color="#F4FFB0"/><stop offset="1" stop-color="#A8D437"/></radialGradient>
+    <clipPath id="cc"><rect x="214" y="120" width="84" height="272" rx="42"/><rect x="120" y="214" width="272" height="84" rx="42"/></clipPath>
+  </defs>
+
+  <ellipse cx="256" cy="452" rx="150" ry="32" fill="#241F4A" opacity="0.22" filter="url(#l)"/>
+  <rect x="214" y="120" width="84" height="272" rx="42" fill="url(#gi)"/>
+  <rect x="120" y="214" width="272" height="84" rx="42" fill="url(#gi)"/>
+  <g clip-path="url(#cc)">
+    <ellipse cx="188" cy="178" rx="98" ry="64" fill="#ffffff" opacity="0.45" filter="url(#m)"/>
+    <ellipse cx="332" cy="340" rx="98" ry="68" fill="#2E2498" opacity="0.44" filter="url(#m)"/>
+    <ellipse cx="192" cy="170" rx="20" ry="11" fill="#ffffff" opacity="0.9" filter="url(#s)"/>
+  </g>
+  <!-- lime pill at the heart -->
+  <circle cx="256" cy="256" r="30" fill="url(#gsph)"/>
+  <ellipse cx="247" cy="247" rx="9" ry="5" fill="#ffffff" opacity="0.85" filter="url(#s)"/>
+</svg>

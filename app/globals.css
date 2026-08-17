@@ -1,0 +1,614 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-arabic), 'IBM Plex Sans Arabic Fallback', sans-serif;
+  --font-heading: var(--font-heading-arabic), var(--font-arabic), sans-serif;
+  --font-mono: var(--font-mono-latin), monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-ink: var(--ink);
+  --color-lime: var(--lime);
+  --color-lime-foreground: var(--lime-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  color-scheme: light;
+  --radius: 1rem;
+
+  /* Canvas & ink */
+  --background: oklch(0.97 0.012 290);
+  --foreground: oklch(0.26 0.045 284);
+  --ink: oklch(0.26 0.05 284);
+  --ink-2: oklch(0.33 0.075 284);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.26 0.045 284);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.26 0.045 284);
+
+  /* Brand */
+  --primary: oklch(0.55 0.21 277);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.93 0.03 285);
+  --secondary-foreground: oklch(0.4 0.1 280);
+  --accent: oklch(0.94 0.035 288);
+  --accent-foreground: oklch(0.45 0.15 279);
+
+  /* Electric lime — accent on ink surfaces & highlights */
+  --lime: oklch(0.92 0.2 122);
+  --lime-foreground: oklch(0.3 0.06 130);
+
+  /* Semantic */
+  --success: oklch(0.72 0.14 166);
+  --success-foreground: oklch(0.3 0.05 168);
+  --warning: oklch(0.78 0.15 75);
+  --warning-foreground: oklch(0.38 0.08 65);
+  --destructive: oklch(0.62 0.21 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  --muted: oklch(0.955 0.012 288);
+  --muted-foreground: oklch(0.53 0.03 284);
+  --border: oklch(0.905 0.016 288);
+  --input: oklch(0.905 0.016 288);
+  --ring: oklch(0.55 0.21 277);
+
+  /* Charts: indigo → violet → sky → mint → amber */
+  --chart-1: oklch(0.55 0.21 277);
+  --chart-2: oklch(0.6 0.21 293);
+  --chart-3: oklch(0.72 0.13 235);
+  --chart-4: oklch(0.72 0.14 166);
+  --chart-5: oklch(0.78 0.15 75);
+
+  /* Sidebar rides on ink */
+  --sidebar: var(--ink);
+  --sidebar-foreground: oklch(0.94 0.015 286);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: var(--lime);
+  --sidebar-accent-foreground: var(--lime-foreground);
+  --sidebar-border: oklch(0.35 0.05 284);
+  --sidebar-ring: var(--primary);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.21 0.03 282);
+  --foreground: oklch(0.94 0.015 286);
+  --card: oklch(0.27 0.04 283);
+  --card-foreground: oklch(0.94 0.015 286);
+  --popover: oklch(0.27 0.04 283);
+  --popover-foreground: oklch(0.94 0.015 286);
+  --primary: oklch(0.62 0.19 277);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.32 0.05 283);
+  --secondary-foreground: oklch(0.9 0.02 286);
+  --accent: oklch(0.32 0.05 283);
+  --accent-foreground: oklch(0.9 0.02 286);
+  --muted: oklch(0.3 0.04 283);
+  --muted-foreground: oklch(0.7 0.02 285);
+  --border: oklch(0.34 0.04 283);
+  --input: oklch(0.34 0.04 283);
+  --ring: oklch(0.62 0.19 277);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+  }
+  /* All numbers line up — money, counts, tables. */
+  body {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* =========================================================================
+   Rahma DS — "Indigo & Lime"  (see DESIGN.md)
+   ========================================================================= */
+
+/* Ambient canvas: lavender with faint indigo/violet blooms. */
+body {
+  background:
+    radial-gradient(1000px 560px at 92% -10%, oklch(0.55 0.21 277 / 0.1), transparent 58%),
+    radial-gradient(760px 480px at -8% 6%, oklch(0.6 0.21 293 / 0.08), transparent 55%),
+    var(--background);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+/* Cards: floating, super-rounded, indigo-tinted layered shadow. */
+[data-slot='card'] {
+  border-radius: calc(var(--radius) + 6px);
+  border-color: oklch(0.93 0.014 288);
+  box-shadow:
+    0 1px 2px rgb(28 24 68 / 0.04),
+    0 10px 28px -14px rgb(70 62 200 / 0.16);
+}
+
+/* Interactive cards lift with an indigo glow. */
+.card-interactive {
+  transition:
+    box-shadow 0.24s ease,
+    transform 0.24s ease,
+    border-color 0.24s ease;
+  will-change: transform;
+}
+.card-interactive:hover {
+  transform: translateY(-4px);
+  border-color: oklch(0.55 0.21 277 / 0.25);
+  box-shadow:
+    0 20px 38px -16px oklch(0.55 0.21 277 / 0.32),
+    0 6px 14px -8px rgb(28 24 68 / 0.14);
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-interactive:hover {
+    transform: none;
+  }
+}
+
+/* Ink panel — the dark hero surface with lime + indigo glows. */
+.ink-panel {
+  position: relative;
+  overflow: hidden;
+  color: oklch(0.96 0.01 286);
+  border-radius: calc(var(--radius) + 10px);
+  background:
+    radial-gradient(520px 300px at 88% 0%, oklch(0.55 0.21 277 / 0.55), transparent 60%),
+    radial-gradient(420px 260px at 4% 110%, oklch(0.92 0.2 122 / 0.16), transparent 55%),
+    linear-gradient(140deg, var(--ink) 20%, var(--ink-2) 100%);
+  box-shadow:
+    0 24px 48px -20px oklch(0.26 0.05 284 / 0.55),
+    inset 0 1px 0 oklch(1 0 0 / 0.07);
+}
+
+/* Frosted, translucent chrome (top bar). */
+.surface-glass {
+  background: oklch(0.97 0.012 290 / 0.78);
+  backdrop-filter: saturate(1.5) blur(14px);
+}
+
+/* Gradient helpers. */
+.text-gradient {
+  background-image: linear-gradient(100deg, var(--primary), var(--chart-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.bg-brand-gradient {
+  background-image: linear-gradient(135deg, var(--primary), var(--chart-2));
+}
+.bg-brand-soft {
+  background-image: linear-gradient(
+    135deg,
+    oklch(0.55 0.21 277 / 0.12),
+    oklch(0.6 0.21 293 / 0.1)
+  );
+}
+
+/* Icon chip — gradient soft square that carries an icon (KPIs, lists). */
+.icon-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--radius) - 2px);
+  color: #fff;
+  box-shadow: 0 6px 14px -6px oklch(0.55 0.21 277 / 0.5);
+}
+
+/* Pills — chips & statuses. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.pill-success {
+  background: oklch(0.72 0.14 166 / 0.14);
+  color: oklch(0.46 0.11 168);
+}
+.pill-warning {
+  background: oklch(0.78 0.15 75 / 0.16);
+  color: oklch(0.52 0.12 68);
+}
+.pill-danger {
+  background: oklch(0.62 0.21 25 / 0.12);
+  color: oklch(0.5 0.19 25);
+}
+.pill-neutral {
+  background: oklch(0.26 0.045 284 / 0.07);
+  color: oklch(0.42 0.03 284);
+}
+.pill-lime {
+  background: var(--lime);
+  color: var(--lime-foreground);
+}
+.pill-primary {
+  background: oklch(0.55 0.21 277 / 0.12);
+  color: oklch(0.45 0.19 277);
+}
+
+/* Soft-square icon action buttons (Phermo style). */
+.action-sq {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.625rem;
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease;
+}
+.action-sq:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.96);
+}
+.action-view {
+  background: oklch(0.55 0.21 277 / 0.12);
+  color: oklch(0.45 0.19 277);
+}
+.action-edit {
+  background: oklch(0.72 0.14 166 / 0.16);
+  color: oklch(0.44 0.11 168);
+}
+.action-delete {
+  background: oklch(0.62 0.21 25 / 0.12);
+  color: oklch(0.52 0.19 25);
+}
+
+/* Return mode — pulsing warm glow around the cart so الوضع لا يُخطئه أحد. */
+@keyframes return-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px oklch(0.62 0.21 25 / 0.55),
+      0 0 24px 2px oklch(0.62 0.21 25 / 0.28),
+      inset 0 0 18px oklch(0.62 0.21 25 / 0.07);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px oklch(0.62 0.21 25 / 0.85),
+      0 0 42px 6px oklch(0.62 0.21 25 / 0.42),
+      inset 0 0 26px oklch(0.62 0.21 25 / 0.12);
+  }
+}
+.return-glow {
+  animation: return-glow 2.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .return-glow {
+    animation: none;
+    box-shadow: 0 0 0 2px oklch(0.62 0.21 25 / 0.7);
+  }
+}
+
+/* Cart bump — quick grow-and-settle when an item lands in the cart. */
+@keyframes cart-bump {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.985);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.cart-bump {
+  animation: cart-bump 0.35s ease-out;
+}
+
+/* Gentle infinite float for decorative elements. */
+@keyframes rahma-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+.float-slow {
+  animation: rahma-float 6s ease-in-out infinite;
+}
+.float-slower {
+  animation: rahma-float 9s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .float-slow,
+  .float-slower {
+    animation: none;
+  }
+}
+
+/* Modern, subtle scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(28 24 68 / 0.22) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(28 24 68 / 0.2);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(28 24 68 / 0.32);
+  background-clip: content-box;
+}
+
+/* Sidebar (ink rail) scrollbar becomes near-invisible. */
+.ink-rail *::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.14);
+  background-clip: content-box;
+}
+
+/* Global reduced-motion safety net. When the OS/browser requests reduced motion
+   (common on low-power / accessibility setups and many older devices), collapse
+   EVERY remaining CSS transition + keyframe animation so nothing spends the main
+   thread on effects. Purely visual — never changes behavior — and silently
+   ignored on browsers that don't support the query. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Claymorphism — REPORTS PAGE ONLY.
+   Soft "fluffy" clay surfaces: big radius, inner top-light + inner bottom
+   shade, and a deep soft drop shadow. Colors come from the app's existing
+   tokens so the palette stays consistent everywhere.
+--------------------------------------------------------------------------- */
+.clay-card {
+  border-radius: 26px;
+  background: var(--card);
+  border: none;
+  box-shadow:
+    inset 0 8px 16px rgb(255 255 255 / 0.9),
+    inset 0 -10px 18px rgb(28 24 68 / 0.08),
+    0 18px 34px -12px rgb(28 24 68 / 0.22);
+}
+.clay-card-primary {
+  background: color-mix(in oklab, var(--primary) 14%, white);
+  box-shadow:
+    inset 0 8px 16px rgb(255 255 255 / 0.75),
+    inset 0 -10px 18px color-mix(in oklab, var(--primary) 26%, transparent),
+    0 18px 34px -12px color-mix(in oklab, var(--primary) 34%, transparent);
+}
+.clay-chip {
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--primary) 9%, white);
+  box-shadow:
+    inset 0 3px 6px rgb(255 255 255 / 0.9),
+    inset 0 -4px 8px rgb(28 24 68 / 0.09),
+    0 6px 14px -6px rgb(28 24 68 / 0.2);
+}
+.clay-btn {
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--primary) 92%, white);
+  color: var(--primary-foreground);
+  box-shadow:
+    inset 0 4px 8px rgb(255 255 255 / 0.35),
+    inset 0 -6px 10px rgb(28 24 68 / 0.28),
+    0 12px 22px -8px color-mix(in oklab, var(--primary) 55%, transparent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.clay-btn:hover {
+  transform: translateY(-1px);
+}
+.clay-btn:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 6px 12px rgb(28 24 68 / 0.3),
+    0 6px 12px -6px color-mix(in oklab, var(--primary) 45%, transparent);
+}
+.clay-btn-soft {
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--primary) 10%, white);
+  color: var(--ink);
+  box-shadow:
+    inset 0 4px 8px rgb(255 255 255 / 0.9),
+    inset 0 -5px 10px rgb(28 24 68 / 0.1),
+    0 10px 20px -10px rgb(28 24 68 / 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.clay-btn-soft:hover {
+  transform: translateY(-1px);
+}
+.clay-btn-soft:active {
+  transform: translateY(1px);
+}
+/* Horizontal chip/card strips on mobile — scrollable, no visible bar. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.clay-well {
+  border-radius: 20px;
+  background: color-mix(in oklab, var(--ink) 4%, white);
+  box-shadow:
+    inset 0 6px 12px rgb(28 24 68 / 0.1),
+    inset 0 -4px 8px rgb(255 255 255 / 0.7);
+}
+
+/* ---------------------------------------------------------------------------
+   Dark theme — the surfaces above were authored for a light canvas. Re-tune the
+   ones that hardcode white/light so they read correctly when .dark is active.
+   (Core tokens — bg, card, border, primary… — already flip in the .dark block.)
+--------------------------------------------------------------------------- */
+.dark [data-slot='card'] {
+  border-color: var(--border);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.3),
+    0 10px 28px -14px rgb(0 0 0 / 0.55);
+}
+.dark .surface-glass {
+  background: oklch(0.23 0.03 282 / 0.72);
+}
+.dark * {
+  scrollbar-color: rgb(255 255 255 / 0.2) transparent;
+}
+.dark *::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.18);
+  background-clip: content-box;
+}
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 0.3);
+  background-clip: content-box;
+}
+
+/* Claymorphism (reports + POS) — swap the light whites/insets for dark. */
+.dark .clay-card {
+  background: var(--card);
+  box-shadow:
+    inset 0 8px 16px rgb(255 255 255 / 0.04),
+    inset 0 -10px 18px rgb(0 0 0 / 0.35),
+    0 18px 34px -12px rgb(0 0 0 / 0.5);
+}
+.dark .clay-card-primary {
+  background: color-mix(in oklab, var(--primary) 24%, var(--card));
+  box-shadow:
+    inset 0 8px 16px rgb(255 255 255 / 0.05),
+    inset 0 -10px 18px color-mix(in oklab, var(--primary) 40%, transparent),
+    0 18px 34px -12px rgb(0 0 0 / 0.5);
+}
+.dark .clay-chip {
+  background: color-mix(in oklab, var(--primary) 22%, var(--card));
+  box-shadow:
+    inset 0 3px 6px rgb(255 255 255 / 0.05),
+    inset 0 -4px 8px rgb(0 0 0 / 0.3),
+    0 6px 14px -6px rgb(0 0 0 / 0.4);
+}
+.dark .clay-btn-soft {
+  background: color-mix(in oklab, var(--primary) 20%, var(--card));
+  color: var(--foreground);
+  box-shadow:
+    inset 0 4px 8px rgb(255 255 255 / 0.05),
+    inset 0 -5px 10px rgb(0 0 0 / 0.3),
+    0 10px 20px -10px rgb(0 0 0 / 0.45);
+}
+.dark .clay-well {
+  background: color-mix(in oklab, var(--card) 86%, black);
+  box-shadow:
+    inset 0 6px 12px rgb(0 0 0 / 0.35),
+    inset 0 -4px 8px rgb(255 255 255 / 0.04);
+}
+
+/* ---------------------------------------------------------------------------
+   Clay charts — lift recharts pies & bars off the surface so they match the
+   claymorphic panels around them instead of looking flat. (drop-shadow needs
+   the SVG to not clip, hence overflow: visible.)
+--------------------------------------------------------------------------- */
+.clay-chart svg {
+  overflow: visible;
+}
+.clay-chart .recharts-sector {
+  filter: drop-shadow(0 5px 7px rgb(28 24 68 / 0.24));
+}
+.clay-chart .recharts-rectangle,
+.clay-chart .recharts-bar-rectangle path {
+  filter: drop-shadow(0 6px 8px rgb(28 24 68 / 0.2));
+}
+.dark .clay-chart .recharts-sector {
+  filter: drop-shadow(0 6px 9px rgb(0 0 0 / 0.55));
+}
+.dark .clay-chart .recharts-rectangle,
+.dark .clay-chart .recharts-bar-rectangle path {
+  filter: drop-shadow(0 6px 9px rgb(0 0 0 / 0.5));
+}
+
+/* ── Marketing marquee (landing page) ────────────────────────────────── */
+@keyframes lp-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.lp-marquee {
+  animation: lp-marquee 26s linear infinite;
+}
+.lp-marquee:hover {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-marquee { animation: none; }
+}
+
+/* Smooth anchor scrolling (marketing + app) — respects reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

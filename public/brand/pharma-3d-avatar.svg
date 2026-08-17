@@ -1,0 +1,38 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pharma 3D">
+  <title>Pharma — 3D clay avatar</title>
+  <defs>
+    <filter id="bS" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="bM" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="10"/></filter>
+    <filter id="bL" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="22"/></filter>
+    <linearGradient id="gBG" gradientUnits="userSpaceOnUse" x1="60" y1="30" x2="452" y2="482">
+      <stop offset="0" stop-color="#8380F4"/><stop offset="0.55" stop-color="#5A55D8"/><stop offset="1" stop-color="#3E38BC"/>
+    </linearGradient>
+    <linearGradient id="gLime" gradientUnits="userSpaceOnUse" x1="150" y1="150" x2="362" y2="366">
+      <stop offset="0" stop-color="#EEFF8E"/><stop offset="0.5" stop-color="#CDF04E"/><stop offset="1" stop-color="#A2CE28"/>
+    </linearGradient>
+    <clipPath id="cBG"><rect x="0" y="0" width="512" height="512"/></clipPath>
+    <clipPath id="cCross"><rect x="224" y="150" width="64" height="212" rx="32"/><rect x="150" y="224" width="212" height="64" rx="32"/></clipPath>
+  </defs>
+
+  <!-- clay background -->
+  <rect x="0" y="0" width="512" height="512" fill="url(#gBG)"/>
+  <g clip-path="url(#cBG)">
+    <ellipse cx="150" cy="120" rx="215" ry="155" fill="#ffffff" opacity="0.14" filter="url(#bL)"/>
+    <ellipse cx="256" cy="26" rx="300" ry="64" fill="#ffffff" opacity="0.10" filter="url(#bM)"/>
+    <ellipse cx="408" cy="440" rx="220" ry="175" fill="#241E82" opacity="0.38" filter="url(#bL)"/>
+  </g>
+
+  <!-- cross cast shadow on the tile -->
+  <ellipse cx="272" cy="304" rx="150" ry="52" fill="#16123A" opacity="0.34" filter="url(#bL)"/>
+
+  <!-- floating lime clay cross -->
+  <g>
+    <rect x="224" y="150" width="64" height="212" rx="32" fill="url(#gLime)"/>
+    <rect x="150" y="224" width="212" height="64" rx="32" fill="url(#gLime)"/>
+    <g clip-path="url(#cCross)">
+      <ellipse cx="202" cy="196" rx="82" ry="54" fill="#ffffff" opacity="0.50" filter="url(#bM)"/>
+      <ellipse cx="322" cy="330" rx="82" ry="58" fill="#6C8E12" opacity="0.50" filter="url(#bM)"/>
+      <ellipse cx="206" cy="188" rx="18" ry="10" fill="#ffffff" opacity="0.92" filter="url(#bS)"/>
+    </g>
+  </g>
+</svg>

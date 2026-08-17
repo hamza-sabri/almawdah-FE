@@ -1,0 +1,8 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pharma avatar">
+  <title>Pharma avatar (full-bleed, for WhatsApp circle crop)</title>
+  <rect x="0" y="0" width="512" height="512" fill="#5B5CE2"/>
+  <ellipse cx="150" cy="140" rx="150" ry="90" fill="#ffffff" opacity="0.06"/>
+  <rect x="146" y="228" width="220" height="56" rx="28" fill="#D8F55A"/>
+  <rect x="228" y="146" width="56" height="220" rx="28" fill="#D8F55A"/>
+  <line x1="234" y1="188" x2="278" y2="188" stroke="#5B5CE2" stroke-width="7" stroke-linecap="round" opacity="0.75"/>
+</svg>

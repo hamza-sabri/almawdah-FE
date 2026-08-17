@@ -1,0 +1,64 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pharma store shop">
+<title>Pharma — 3D clay store storefront</title>
+<defs>
+  <filter id="bS" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="3.4"/></filter>
+  <filter id="bM" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="9"/></filter>
+  <filter id="bL" x="-110%" y="-110%" width="320%" height="320%"><feGaussianBlur stdDeviation="20"/></filter>
+
+  <linearGradient id="gFrame" gradientUnits="userSpaceOnUse" x1="80" y1="90" x2="440" y2="440"><stop offset="0" stop-color="#7370EE"/><stop offset=".5" stop-color="#524CD2"/><stop offset="1" stop-color="#3A34B0"/></linearGradient>
+  <linearGradient id="gWin" gradientUnits="userSpaceOnUse" x1="104" y1="170" x2="404" y2="418"><stop offset="0" stop-color="#F0EEFC"/><stop offset="1" stop-color="#D8D4F3"/></linearGradient>
+  <linearGradient id="gLimeH" gradientUnits="userSpaceOnUse" x1="186" y1="276" x2="326" y2="326"><stop offset="0" stop-color="#EEFF8E"/><stop offset=".5" stop-color="#CDF04E"/><stop offset="1" stop-color="#A2CE28"/></linearGradient>
+  <linearGradient id="gIndV" gradientUnits="userSpaceOnUse" x1="232" y1="230" x2="280" y2="370"><stop offset="0" stop-color="#948FFB"/><stop offset=".5" stop-color="#645ADE"/><stop offset="1" stop-color="#4131B4"/></linearGradient>
+
+  <clipPath id="clFrame"><rect x="64" y="76" width="384" height="372" rx="90"/></clipPath>
+  <clipPath id="clWin"><rect x="104" y="170" width="304" height="248" rx="44"/></clipPath>
+  <clipPath id="clAwn"><path d="M96,150 L96,134 Q96,122 108,122 L404,122 Q416,122 416,134 L416,150 a20,17 0 0 1 -40,0 a20,17 0 0 1 -40,0 a20,17 0 0 1 -40,0 a20,17 0 0 1 -40,0 a20,17 0 0 1 -40,0 a20,17 0 0 1 -40,0 a20,17 0 0 1 -40,0 a20,17 0 0 1 -40,0 Z"/></clipPath>
+  <clipPath id="clH"><rect x="186" y="276" width="140" height="50" rx="25"/></clipPath>
+  <clipPath id="clV"><rect x="232" y="230" width="48" height="140" rx="24"/></clipPath>
+</defs>
+
+<!-- frame -->
+<rect x="64" y="76" width="384" height="372" rx="90" fill="url(#gFrame)"/>
+<g clip-path="url(#clFrame)">
+  <ellipse cx="256" cy="108" rx="210" ry="46" fill="#ffffff" opacity="0.16" filter="url(#bM)"/>
+  <ellipse cx="404" cy="424" rx="150" ry="112" fill="#241E82" opacity="0.34" filter="url(#bL)"/>
+</g>
+
+<!-- shop window -->
+<rect x="104" y="170" width="304" height="248" rx="44" fill="url(#gWin)"/>
+<g clip-path="url(#clWin)">
+  <ellipse cx="256" cy="190" rx="164" ry="34" fill="#7C74C0" opacity="0.40" filter="url(#bM)"/>
+  <ellipse cx="256" cy="412" rx="150" ry="30" fill="#ffffff" opacity="0.55" filter="url(#bM)"/>
+</g>
+
+<!-- capsule-cross inside window -->
+<ellipse cx="256" cy="300" rx="40" ry="28" fill="#2f2496" opacity="0.16" filter="url(#bM)"/>
+<rect x="186" y="276" width="140" height="50" rx="25" fill="url(#gLimeH)"/>
+<g clip-path="url(#clH)">
+  <ellipse cx="220" cy="288" rx="56" ry="15" fill="#ffffff" opacity="0.42" filter="url(#bM)"/>
+  <ellipse cx="302" cy="316" rx="40" ry="15" fill="#5f7d12" opacity="0.34" filter="url(#bM)"/>
+  <ellipse cx="214" cy="286" rx="16" ry="6" fill="#ffffff" opacity="0.85" filter="url(#bS)"/>
+  <ellipse cx="256" cy="300" rx="40" ry="28" fill="#3a5f08" opacity="0.26" filter="url(#bM)"/>
+</g>
+<rect x="232" y="230" width="48" height="140" rx="24" fill="url(#gIndV)"/>
+<g clip-path="url(#clV)">
+  <ellipse cx="248" cy="262" rx="26" ry="42" fill="#ffffff" opacity="0.34" filter="url(#bM)"/>
+  <ellipse cx="272" cy="348" rx="22" ry="38" fill="#2A2596" opacity="0.42" filter="url(#bM)"/>
+  <ellipse cx="250" cy="246" rx="9" ry="15" fill="#ffffff" opacity="0.9" filter="url(#bS)"/>
+</g>
+
+<!-- awning over the top -->
+<ellipse cx="256" cy="180" rx="168" ry="18" fill="#2a2560" opacity="0.28" filter="url(#bM)"/>
+<g clip-path="url(#clAwn)">
+  <rect x="96" y="118" width="40" height="58" fill="#C9EE49"/>
+  <rect x="136" y="118" width="40" height="58" fill="#7B78F2"/>
+  <rect x="176" y="118" width="40" height="58" fill="#C9EE49"/>
+  <rect x="216" y="118" width="40" height="58" fill="#7B78F2"/>
+  <rect x="256" y="118" width="40" height="58" fill="#C9EE49"/>
+  <rect x="296" y="118" width="40" height="58" fill="#7B78F2"/>
+  <rect x="336" y="118" width="40" height="58" fill="#C9EE49"/>
+  <rect x="376" y="118" width="40" height="58" fill="#7B78F2"/>
+  <ellipse cx="238" cy="130" rx="182" ry="15" fill="#ffffff" opacity="0.28" filter="url(#bM)"/>
+  <ellipse cx="256" cy="168" rx="172" ry="12" fill="#000000" opacity="0.12" filter="url(#bM)"/>
+</g>
+</svg>

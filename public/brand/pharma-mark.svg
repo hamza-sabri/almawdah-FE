@@ -1,0 +1,10 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pharma">
+  <title>Pharma mark</title>
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="#5B5CE2"/>
+  <ellipse cx="150" cy="150" rx="120" ry="70" fill="#ffffff" opacity="0.06"/>
+  <!-- store cross built from rounded capsules -->
+  <rect x="156" y="228" width="200" height="56" rx="28" fill="#D8F55A"/>
+  <rect x="228" y="140" width="56" height="232" rx="28" fill="#D8F55A"/>
+  <!-- capsule seam detail on the upper arm -->
+  <line x1="234" y1="184" x2="278" y2="184" stroke="#5B5CE2" stroke-width="7" stroke-linecap="round" opacity="0.75"/>
+</svg>

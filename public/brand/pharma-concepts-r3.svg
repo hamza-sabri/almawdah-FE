@@ -1,0 +1,87 @@
+<svg viewBox="0 0 900 460" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Arial,sans-serif">
+<defs>
+  <filter id="bS" x="-70%" y="-70%" width="240%" height="240%"><feGaussianBlur stdDeviation="3.2"/></filter>
+  <filter id="bM" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="9"/></filter>
+  <filter id="bL" x="-110%" y="-110%" width="320%" height="320%"><feGaussianBlur stdDeviation="20"/></filter>
+
+  <!-- Pill bottle -->
+  <linearGradient id="gBody" gradientUnits="userSpaceOnUse" x1="118" y1="150" x2="202" y2="272"><stop offset="0" stop-color="#8E8CF9"/><stop offset=".5" stop-color="#5F59DA"/><stop offset="1" stop-color="#3E38BC"/></linearGradient>
+  <linearGradient id="gCap" gradientUnits="userSpaceOnUse" x1="126" y1="118" x2="194" y2="152"><stop offset="0" stop-color="#EEFF8E"/><stop offset="1" stop-color="#A6D42B"/></linearGradient>
+  <!-- Capsule cross -->
+  <linearGradient id="gLimeH" gradientUnits="userSpaceOnUse" x1="372" y1="166" x2="528" y2="228"><stop offset="0" stop-color="#EEFF8E"/><stop offset=".5" stop-color="#CDF04E"/><stop offset="1" stop-color="#A2CE28"/></linearGradient>
+  <linearGradient id="gIndV" gradientUnits="userSpaceOnUse" x1="418" y1="118" x2="482" y2="276"><stop offset="0" stop-color="#928FFA"/><stop offset=".5" stop-color="#645ADE"/><stop offset="1" stop-color="#4131B4"/></linearGradient>
+  <!-- Mortar -->
+  <linearGradient id="gMort" gradientUnits="userSpaceOnUse" x1="686" y1="196" x2="794" y2="262"><stop offset="0" stop-color="#8E8CF9"/><stop offset=".5" stop-color="#6154DC"/><stop offset="1" stop-color="#3E38BC"/></linearGradient>
+  <linearGradient id="gPest" gradientUnits="userSpaceOnUse" x1="722" y1="132" x2="760" y2="224"><stop offset="0" stop-color="#9C99FB"/><stop offset="1" stop-color="#5B54D6"/></linearGradient>
+  <radialGradient id="gKnob" cx=".38" cy=".32" r=".85"><stop offset="0" stop-color="#F1FFA8"/><stop offset="1" stop-color="#A6D42B"/></radialGradient>
+
+  <clipPath id="clBody"><rect x="118" y="150" width="84" height="120" rx="24"/></clipPath>
+  <clipPath id="clCap"><rect x="126" y="118" width="68" height="32" rx="14"/></clipPath>
+  <clipPath id="clH"><rect x="372" y="166" width="156" height="60" rx="30"/></clipPath>
+  <clipPath id="clV"><rect x="420" y="118" width="60" height="156" rx="30"/></clipPath>
+  <clipPath id="clM"><path d="M686,206 L794,206 L781,246 Q775,261 758,261 L722,261 Q705,261 699,246 Z"/></clipPath>
+</defs>
+
+<rect x="6" y="6" width="888" height="448" rx="22" fill="#F7F6FC" stroke="#E7E4F3"/>
+<text x="34" y="40" font-size="19" font-weight="800" fill="#201F38">Pharma — premium 3D clay, made for stores</text>
+
+<!-- ===== Pill Bottle (left) ===== -->
+<ellipse cx="160" cy="282" rx="78" ry="17" fill="#241F4A" opacity="0.24" filter="url(#bL)"/>
+<!-- cap -->
+<rect x="126" y="118" width="68" height="32" rx="14" fill="url(#gCap)"/>
+<g clip-path="url(#clCap)"><ellipse cx="146" cy="126" rx="30" ry="12" fill="#ffffff" opacity="0.45" filter="url(#bS)"/></g>
+<!-- body -->
+<rect x="118" y="150" width="84" height="120" rx="24" fill="url(#gBody)"/>
+<g clip-path="url(#clBody)">
+  <ellipse cx="140" cy="176" rx="46" ry="40" fill="#ffffff" opacity="0.34" filter="url(#bM)"/>
+  <ellipse cx="190" cy="252" rx="42" ry="40" fill="#2A2596" opacity="0.42" filter="url(#bM)"/>
+  <ellipse cx="140" cy="168" rx="15" ry="8" fill="#ffffff" opacity="0.9" filter="url(#bS)"/>
+</g>
+<!-- white cross label -->
+<rect x="152" y="190" width="16" height="50" rx="5" fill="#ffffff" opacity="0.95"/>
+<rect x="135" y="207" width="50" height="16" rx="5" fill="#ffffff" opacity="0.95"/>
+<text x="160" y="356" text-anchor="middle" font-size="16" font-weight="800" fill="#201F38">Pill Bottle</text>
+<text x="160" y="378" text-anchor="middle" font-size="12.5" fill="#7A759B">unmistakably store</text>
+
+<!-- ===== Capsule-Cross (center, recommended) ===== -->
+<ellipse cx="450" cy="288" rx="96" ry="19" fill="#241F4A" opacity="0.26" filter="url(#bL)"/>
+<!-- horizontal lime capsule (behind) -->
+<rect x="372" y="166" width="156" height="60" rx="30" fill="url(#gLimeH)"/>
+<g clip-path="url(#clH)">
+  <ellipse cx="410" cy="180" rx="62" ry="16" fill="#ffffff" opacity="0.42" filter="url(#bM)"/>
+  <ellipse cx="498" cy="216" rx="44" ry="16" fill="#5f7d12" opacity="0.34" filter="url(#bM)"/>
+  <ellipse cx="405" cy="178" rx="16" ry="6" fill="#ffffff" opacity="0.85" filter="url(#bS)"/>
+  <!-- contact shadow from vertical capsule -->
+  <ellipse cx="450" cy="200" rx="42" ry="30" fill="#3a5f08" opacity="0.28" filter="url(#bM)"/>
+</g>
+<!-- vertical indigo capsule (front) -->
+<rect x="420" y="118" width="60" height="156" rx="30" fill="url(#gIndV)"/>
+<g clip-path="url(#clV)">
+  <ellipse cx="438" cy="150" rx="30" ry="44" fill="#ffffff" opacity="0.36" filter="url(#bM)"/>
+  <ellipse cx="470" cy="244" rx="26" ry="40" fill="#2A2596" opacity="0.42" filter="url(#bM)"/>
+  <ellipse cx="440" cy="140" rx="9" ry="16" fill="#ffffff" opacity="0.9" filter="url(#bS)"/>
+</g>
+<rect x="388" y="70" width="130" height="26" rx="13" fill="#201F38"/>
+<text x="453" y="87" text-anchor="middle" font-size="11.5" font-weight="700" fill="#D8F55A">★ RECOMMENDED</text>
+<text x="450" y="356" text-anchor="middle" font-size="16" font-weight="800" fill="#201F38">Capsule-Cross</text>
+<text x="450" y="378" text-anchor="middle" font-size="12.5" fill="#7A759B">a cross made of pills — ownable</text>
+
+<!-- ===== Mortar & Pestle in glossy clay (right) ===== -->
+<ellipse cx="740" cy="282" rx="84" ry="17" fill="#241F4A" opacity="0.26" filter="url(#bL)"/>
+<g transform="rotate(20 740 205)">
+  <rect x="731" y="134" width="18" height="88" rx="9" fill="url(#gPest)"/>
+  <ellipse cx="737" cy="170" rx="4" ry="30" fill="#ffffff" opacity="0.35" filter="url(#bS)"/>
+  <circle cx="740" cy="138" r="14" fill="url(#gKnob)"/>
+  <ellipse cx="736" cy="134" rx="5" ry="3" fill="#ffffff" opacity="0.85" filter="url(#bS)"/>
+</g>
+<path d="M686,206 L794,206 L781,246 Q775,261 758,261 L722,261 Q705,261 699,246 Z" fill="url(#gMort)"/>
+<ellipse cx="740" cy="206" rx="54" ry="13" fill="#A6A3FB"/>
+<ellipse cx="740" cy="207" rx="40" ry="9" fill="#453CB0"/>
+<ellipse cx="724" cy="210" rx="22" ry="4.5" fill="#ffffff" opacity="0.4" filter="url(#bS)"/>
+<g clip-path="url(#clM)">
+  <ellipse cx="710" cy="222" rx="34" ry="18" fill="#ffffff" opacity="0.28" filter="url(#bM)"/>
+  <ellipse cx="774" cy="248" rx="30" ry="16" fill="#2A2596" opacity="0.44" filter="url(#bM)"/>
+</g>
+<text x="740" y="356" text-anchor="middle" font-size="16" font-weight="800" fill="#201F38">Mortar &amp; Pestle</text>
+<text x="740" y="378" text-anchor="middle" font-size="12.5" fill="#7A759B">timeless, in 3D clay</text>
+</svg>

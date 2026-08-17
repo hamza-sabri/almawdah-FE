@@ -1,0 +1,14 @@
+<svg viewBox="0 0 980 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pharma — فارما">
+  <title>Pharma horizontal lockup</title>
+  <!-- mark on the right (RTL) -->
+  <g transform="translate(800,32) scale(0.34)">
+    <rect x="32" y="32" width="448" height="448" rx="112" fill="#5B5CE2"/>
+    <rect x="156" y="228" width="200" height="56" rx="28" fill="#D8F55A"/>
+    <rect x="228" y="140" width="56" height="232" rx="28" fill="#D8F55A"/>
+    <line x1="234" y1="184" x2="278" y2="184" stroke="#5B5CE2" stroke-width="7" stroke-linecap="round" opacity="0.75"/>
+  </g>
+  <!-- wordmark + tagline, right-aligned to sit left of the mark -->
+  <text x="760" y="118" text-anchor="end" font-family="'Alexandria',Tahoma,'Segoe UI',sans-serif" font-size="104" font-weight="800" fill="#201F38">فارما</text>
+  <text x="760" y="160" text-anchor="end" font-family="'Alexandria','Segoe UI',sans-serif" font-size="30" font-weight="700" letter-spacing="6" fill="#5B5CE2">PHARMA</text>
+  <text x="760" y="205" text-anchor="end" font-family="'Alexandria',Tahoma,'Segoe UI',sans-serif" font-size="30" fill="#6C6790">إدارة صيدليتك، ببساطة</text>
+</svg>

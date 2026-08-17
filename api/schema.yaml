@@ -1,0 +1,4474 @@
+openapi: 3.0.3
+info:
+  title: Backend API
+  version: 1.0.0
+  description: API built from the django-backend-template.
+paths:
+  /api/v1/audit/:
+    get:
+      operationId: audit_retrieve
+      description: |-
+        GET  /api/v1/audit/            — recent destructive actions (owner-only)
+        POST /api/v1/audit/<id>/undo/    — put a bulk edit back.
+
+        Undo restores the exact previous value of every field the action changed,
+        row by row, inside one transaction. It is refused once already undone, or
+        when the action was too large to snapshot — we never pretend.
+      tags:
+      - audit
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: audit_create
+      description: |-
+        GET  /api/v1/audit/            — recent destructive actions (owner-only)
+        POST /api/v1/audit/<id>/undo/    — put a bulk edit back.
+
+        Undo restores the exact previous value of every field the action changed,
+        row by row, inside one transaction. It is refused once already undone, or
+        when the action was too large to snapshot — we never pretend.
+      tags:
+      - audit
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/audit/{id}/undo/:
+    get:
+      operationId: audit_undo_retrieve
+      description: |-
+        GET  /api/v1/audit/            — recent destructive actions (owner-only)
+        POST /api/v1/audit/<id>/undo/    — put a bulk edit back.
+
+        Undo restores the exact previous value of every field the action changed,
+        row by row, inside one transaction. It is refused once already undone, or
+        when the action was too large to snapshot — we never pretend.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - audit
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: audit_undo_create
+      description: |-
+        GET  /api/v1/audit/            — recent destructive actions (owner-only)
+        POST /api/v1/audit/<id>/undo/    — put a bulk edit back.
+
+        Undo restores the exact previous value of every field the action changed,
+        row by row, inside one transaction. It is refused once already undone, or
+        when the action was too large to snapshot — we never pretend.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - audit
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: POST username + password -> {access, refresh, user}.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPairRequest'
+        required: true
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: Blacklist a refresh token so it can no longer be used.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '205':
+          description: No response body
+  /api/v1/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      description: GET/PATCH the currently authenticated user.
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: auth_me_update
+      description: GET/PATCH the currently authenticated user.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: auth_me_partial_update
+      description: GET/PATCH the currently authenticated user.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/auth/refresh/:
+    post:
+      operationId: auth_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/categories/:
+    get:
+      operationId: categories_list
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - categories
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCategoryList'
+          description: ''
+    post:
+      operationId: categories_create
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      tags:
+      - categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+  /api/v1/categories/{id}/:
+    get:
+      operationId: categories_retrieve
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Category.
+        required: true
+      tags:
+      - categories
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+    put:
+      operationId: categories_update
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Category.
+        required: true
+      tags:
+      - categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+    patch:
+      operationId: categories_partial_update
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Category.
+        required: true
+      tags:
+      - categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+          description: ''
+    delete:
+      operationId: categories_destroy
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Category.
+        required: true
+      tags:
+      - categories
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/customers/:
+    get:
+      operationId: customers_list
+      description: |-
+        CRUD + search/filter/sort for customer profiles.
+
+        - search:  ?search=  over name, phone, status, notes
+        - filter:  ?status= ?phone= ?gender=  ?has_debt=true|false
+        - sort:    ?ordering=name | -created_at | -outstanding | outstanding ...
+        Each row is annotated with `outstanding` = sum of unpaid debts.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - customers
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCustomerList'
+          description: ''
+    post:
+      operationId: customers_create
+      description: |-
+        CRUD + search/filter/sort for customer profiles.
+
+        - search:  ?search=  over name, phone, status, notes
+        - filter:  ?status= ?phone= ?gender=  ?has_debt=true|false
+        - sort:    ?ordering=name | -created_at | -outstanding | outstanding ...
+        Each row is annotated with `outstanding` = sum of unpaid debts.
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/v1/customers/{id}/:
+    get:
+      operationId: customers_retrieve
+      description: |-
+        CRUD + search/filter/sort for customer profiles.
+
+        - search:  ?search=  over name, phone, status, notes
+        - filter:  ?status= ?phone= ?gender=  ?has_debt=true|false
+        - sort:    ?ordering=name | -created_at | -outstanding | outstanding ...
+        Each row is annotated with `outstanding` = sum of unpaid debts.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - customers
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+    put:
+      operationId: customers_update
+      description: |-
+        CRUD + search/filter/sort for customer profiles.
+
+        - search:  ?search=  over name, phone, status, notes
+        - filter:  ?status= ?phone= ?gender=  ?has_debt=true|false
+        - sort:    ?ordering=name | -created_at | -outstanding | outstanding ...
+        Each row is annotated with `outstanding` = sum of unpaid debts.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+    patch:
+      operationId: customers_partial_update
+      description: |-
+        CRUD + search/filter/sort for customer profiles.
+
+        - search:  ?search=  over name, phone, status, notes
+        - filter:  ?status= ?phone= ?gender=  ?has_debt=true|false
+        - sort:    ?ordering=name | -created_at | -outstanding | outstanding ...
+        Each row is annotated with `outstanding` = sum of unpaid debts.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+    delete:
+      operationId: customers_destroy
+      description: |-
+        CRUD + search/filter/sort for customer profiles.
+
+        - search:  ?search=  over name, phone, status, notes
+        - filter:  ?status= ?phone= ?gender=  ?has_debt=true|false
+        - sort:    ?ordering=name | -created_at | -outstanding | outstanding ...
+        Each row is annotated with `outstanding` = sum of unpaid debts.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - customers
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/customers/{id}/settle/:
+    post:
+      operationId: customers_settle_create
+      description: |-
+        Bulk debt collection for one customer.
+
+        `POST /api/v1/customers/{id}/settle/`
+        - no body / no `amount`  → mark ALL unpaid debts paid.
+        - `{"amount": "150.00"}` → apply the payment oldest-debt-first
+          (FIFO); the last touched debt may end up partially paid.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/v1/customers/quick/:
+    get:
+      operationId: customers_quick_retrieve
+      description: |-
+        Every customer in one Redis-cached payload for instant client-side
+        search/filtering (POS pickers). `GET /api/v1/customers/quick/`.
+      tags:
+      - customers
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/v1/debts/:
+    get:
+      operationId: debts_list
+      description: |-
+        CRUD + search/filter/sort for debts (with their med line items).
+
+        - search:  ?search=  over the customer's name/phone and the note
+        - filter:  ?customer=<id> ?is_paid=true|false
+        - sort:    ?ordering=-created_at | total | discounted_total ...
+      parameters:
+      - in: query
+        name: customer
+        schema:
+          type: number
+      - in: query
+        name: is_paid
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - debts
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDebtList'
+          description: ''
+    post:
+      operationId: debts_create
+      description: |-
+        CRUD + search/filter/sort for debts (with their med line items).
+
+        - search:  ?search=  over the customer's name/phone and the note
+        - filter:  ?customer=<id> ?is_paid=true|false
+        - sort:    ?ordering=-created_at | total | discounted_total ...
+      tags:
+      - debts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DebtRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DebtRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DebtRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Debt'
+          description: ''
+  /api/v1/debts/{id}/:
+    get:
+      operationId: debts_retrieve
+      description: |-
+        CRUD + search/filter/sort for debts (with their med line items).
+
+        - search:  ?search=  over the customer's name/phone and the note
+        - filter:  ?customer=<id> ?is_paid=true|false
+        - sort:    ?ordering=-created_at | total | discounted_total ...
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Debt.
+        required: true
+      tags:
+      - debts
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Debt'
+          description: ''
+    put:
+      operationId: debts_update
+      description: |-
+        CRUD + search/filter/sort for debts (with their med line items).
+
+        - search:  ?search=  over the customer's name/phone and the note
+        - filter:  ?customer=<id> ?is_paid=true|false
+        - sort:    ?ordering=-created_at | total | discounted_total ...
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Debt.
+        required: true
+      tags:
+      - debts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DebtRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DebtRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DebtRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Debt'
+          description: ''
+    patch:
+      operationId: debts_partial_update
+      description: |-
+        CRUD + search/filter/sort for debts (with their med line items).
+
+        - search:  ?search=  over the customer's name/phone and the note
+        - filter:  ?customer=<id> ?is_paid=true|false
+        - sort:    ?ordering=-created_at | total | discounted_total ...
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Debt.
+        required: true
+      tags:
+      - debts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDebtRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDebtRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDebtRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Debt'
+          description: ''
+    delete:
+      operationId: debts_destroy
+      description: |-
+        CRUD + search/filter/sort for debts (with their med line items).
+
+        - search:  ?search=  over the customer's name/phone and the note
+        - filter:  ?customer=<id> ?is_paid=true|false
+        - sort:    ?ordering=-created_at | total | discounted_total ...
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Debt.
+        required: true
+      tags:
+      - debts
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/debts/dashboard/:
+    get:
+      operationId: debts_dashboard_retrieve
+      description: |-
+        All home/insights KPIs in ONE cheap, Redis-cached call.
+
+        `GET /api/v1/debts/dashboard/` →
+        totals, paid/unpaid counts, customer + gender counts, last-6-months
+        series, and the top 6 debtors. Previously the frontend paged through
+        every debt and customer to compute this client-side.
+      tags:
+      - debts
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Debt'
+          description: ''
+  /api/v1/import/hesabate/products/:
+    post:
+      operationId: import_hesabate_products_create
+      description: |-
+        Guided Hesabate ingestion — dry-run first, atomic commit second.
+
+        POST /api/v1/import/hesabate/products/   file=<xlsx>
+        POST /api/v1/import/hesabate/sales/      invoices=<xlsx> items=<xlsx>
+
+        Without `commit=true` the upload is only parsed and validated: the
+        response lists every problem with its exact Excel row number and nothing
+        is written. With `commit=true` the import runs inside ONE transaction —
+        any error rolls the whole thing back. Everything is scoped to the
+        requesting user's store and can never touch anyone else's records.
+      tags:
+      - import
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/import/hesabate/sales/:
+    post:
+      operationId: import_hesabate_sales_create
+      description: |-
+        Guided Hesabate ingestion — dry-run first, atomic commit second.
+
+        POST /api/v1/import/hesabate/products/   file=<xlsx>
+        POST /api/v1/import/hesabate/sales/      invoices=<xlsx> items=<xlsx>
+
+        Without `commit=true` the upload is only parsed and validated: the
+        response lists every problem with its exact Excel row number and nothing
+        is written. With `commit=true` the import runs inside ONE transaction —
+        any error rolls the whole thing back. Everything is scoped to the
+        requesting user's store and can never touch anyone else's records.
+      tags:
+      - import
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/manufacturers/:
+    get:
+      operationId: manufacturers_list
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - manufacturers
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedManufacturerList'
+          description: ''
+    post:
+      operationId: manufacturers_create
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      tags:
+      - manufacturers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManufacturerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ManufacturerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ManufacturerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Manufacturer'
+          description: ''
+  /api/v1/manufacturers/{id}/:
+    get:
+      operationId: manufacturers_retrieve
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Manufacturer.
+        required: true
+      tags:
+      - manufacturers
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Manufacturer'
+          description: ''
+    put:
+      operationId: manufacturers_update
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Manufacturer.
+        required: true
+      tags:
+      - manufacturers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManufacturerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ManufacturerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ManufacturerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Manufacturer'
+          description: ''
+    patch:
+      operationId: manufacturers_partial_update
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Manufacturer.
+        required: true
+      tags:
+      - manufacturers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedManufacturerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedManufacturerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedManufacturerRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Manufacturer'
+          description: ''
+    delete:
+      operationId: manufacturers_destroy
+      description: |-
+        Shared behaviour for the category / manufacturer dropdown endpoints.
+
+        List is searchable (?search=) and ordered by usage; rows can be created
+        directly, though writing a new name on a med auto-creates one anyway.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Manufacturer.
+        required: true
+      tags:
+      - manufacturers
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/pos/cart-state/:
+    get:
+      operationId: pos_cart_state_retrieve
+      description: |-
+        Open POS carts synced per account across devices, in near-realtime.
+
+        Reads are served from Redis when a real shared Redis is configured
+        (REDIS_URL); Postgres keeps the durable copy and is only written when
+        carts actually change. Without Redis the per-process LocMemCache would
+        serve each gunicorn worker its own stale copy, so caching is skipped
+        entirely and reads go straight to the DB — always coherent.
+
+        DELIBERATELY EXEMPT from the StoreResolved 400 guard: the cart blob is
+        a per-USER resource (OneToOne on the account, `_LiteUser` carries no
+        store) — it is scoped by account identity, not by tenant.
+      tags:
+      - pos
+      responses:
+        '200':
+          description: No response body
+    put:
+      operationId: pos_cart_state_update
+      description: |-
+        Open POS carts synced per account across devices, in near-realtime.
+
+        Reads are served from Redis when a real shared Redis is configured
+        (REDIS_URL); Postgres keeps the durable copy and is only written when
+        carts actually change. Without Redis the per-process LocMemCache would
+        serve each gunicorn worker its own stale copy, so caching is skipped
+        entirely and reads go straight to the DB — always coherent.
+
+        DELIBERATELY EXEMPT from the StoreResolved 400 guard: the cart blob is
+        a per-USER resource (OneToOne on the account, `_LiteUser` carries no
+        store) — it is scoped by account identity, not by tenant.
+      tags:
+      - pos
+      responses:
+        '200':
+          description: No response body
+  /api/v1/products/:
+    get:
+      operationId: products_list
+      description: |-
+        CRUD + search/filter/sort for the med catalogue.
+
+        - search:  ?search=  over name, barcode, brand, manufacturer, category
+        - filter:  ?category= ?brand= ?manufacturer= ?barcode= ?source_id=
+        - sort:    ?ordering=name | -price | stock ...  (prefix - for descending)
+      parameters:
+      - in: query
+        name: barcode
+        schema:
+          type: string
+      - in: query
+        name: brand
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: source_id
+        schema:
+          type: string
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProductList'
+          description: ''
+    post:
+      operationId: products_create
+      description: |-
+        CRUD + search/filter/sort for the med catalogue.
+
+        - search:  ?search=  over name, barcode, brand, manufacturer, category
+        - filter:  ?category= ?brand= ?manufacturer= ?barcode= ?source_id=
+        - sort:    ?ordering=name | -price | stock ...  (prefix - for descending)
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/{id}/:
+    get:
+      operationId: products_retrieve
+      description: |-
+        CRUD + search/filter/sort for the med catalogue.
+
+        - search:  ?search=  over name, barcode, brand, manufacturer, category
+        - filter:  ?category= ?brand= ?manufacturer= ?barcode= ?source_id=
+        - sort:    ?ordering=name | -price | stock ...  (prefix - for descending)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Product.
+        required: true
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+    put:
+      operationId: products_update
+      description: |-
+        CRUD + search/filter/sort for the med catalogue.
+
+        - search:  ?search=  over name, barcode, brand, manufacturer, category
+        - filter:  ?category= ?brand= ?manufacturer= ?barcode= ?source_id=
+        - sort:    ?ordering=name | -price | stock ...  (prefix - for descending)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Product.
+        required: true
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+    patch:
+      operationId: products_partial_update
+      description: |-
+        CRUD + search/filter/sort for the med catalogue.
+
+        - search:  ?search=  over name, barcode, brand, manufacturer, category
+        - filter:  ?category= ?brand= ?manufacturer= ?barcode= ?source_id=
+        - sort:    ?ordering=name | -price | stock ...  (prefix - for descending)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Product.
+        required: true
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProductRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProductRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProductRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+    delete:
+      operationId: products_destroy
+      description: |-
+        CRUD + search/filter/sort for the med catalogue.
+
+        - search:  ?search=  over name, barcode, brand, manufacturer, category
+        - filter:  ?category= ?brand= ?manufacturer= ?barcode= ?source_id=
+        - sort:    ?ordering=name | -price | stock ...  (prefix - for descending)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Product.
+        required: true
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/products/bulk_delete/:
+    post:
+      operationId: products_bulk_delete_create
+      description: |-
+        Delete many of THIS store's products at once. Variants and
+        gallery images cascade with each product. Sales and debts history
+        is never lost: SaleItem/DebtItem reference meds with SET_NULL and
+        keep their own name/price/total snapshots, so records survive intact.
+        Body: {"ids": [...]} or {"all": true} to flush the whole list.
+        Owner-only (see get_permissions).
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/bulk_update/:
+    post:
+      operationId: products_bulk_update_create
+      description: |-
+        Fix MANY products at once — the "clean up imported data" tool.
+
+        Target either an explicit selection or EVERY product matching a report
+        filter (so "3,000 items priced zero" can be fixed in one action):
+            {"ids": [1,2,3], "changes": {...}}
+            {"issue": "zero_price", "all_matching": true, "changes": {...}}
+              (+ the same optional filter params the reports table accepts:
+               search, category, manufacturer, price_min/max, stock_min/max,
+               low_stock_threshold, dead_days, include_equal, name_min/max)
+
+        `changes` may set: price, cost, stock, category, manufacturer, brand,
+        expiry_date (null clears), expiry_alert_days, reorder_level — and the
+        big one: `price_from_cost_margin` (e.g. 25 → price = cost × 1.25),
+        which repairs zero-priced imports from the real cost in one pass.
+
+        Atomic, tenant-scoped, owner-only. Returns {"updated": n}.
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/catalog_version/:
+    get:
+      operationId: products_catalog_version_retrieve
+      description: |-
+        A cheap fingerprint of THIS store's catalogue.
+
+        `GET /api/v1/products/catalog_version/` — clients poll this tiny
+        response and refetch the full pos_catalog only when it changes, so a
+        price edited anywhere (admin, import, another device) reaches every
+        online POS within seconds instead of the old 5-minute worst case.
+        Counts catch deletes; Max(updated_at) catches edits (bulk paths set
+        updated_at explicitly).
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/export/hesabate/:
+    get:
+      operationId: products_export_hesabate_retrieve
+      description: |-
+        All products in Hesabate's «قائمة الأسعار» column schema, so the
+        store can re-import to update their data in Hesabate.
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/pos_catalog/:
+    get:
+      operationId: products_pos_catalog_retrieve
+      description: |-
+        The whole catalogue in one compact, Redis-cached payload.
+
+        `GET /api/v1/products/pos_catalog/` — the POS keeps this client-side
+        so barcode scans resolve instantly with zero network round-trips.
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/seed_demo/:
+    post:
+      operationId: products_seed_demo_create
+      description: |-
+        Populate THIS (empty) store with a copy of the demo catalogue —
+        every product, price and variant from the store that has the most
+        products. Only runs when the caller's catalogue is empty, so it can
+        never overwrite real data.
+      tags:
+      - products
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/products/stats/:
+    get:
+      operationId: products_stats_retrieve
+      description: |-
+        Catalogue KPIs computed in the DB: counts, stock, and inventory value.
+
+        `GET /api/v1/products/stats/` — cached in Redis, invalidated on writes.
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/public/branding/:
+    get:
+      operationId: public_branding_retrieve
+      description: |-
+        Public per-tenant branding — store NAME + LOGO by slug, nothing else.
+
+        Powers the white-labelled app chrome (sidebar, login, PWA manifest): each
+        store's deployment asks for its own slug and renders that store's
+        name/logo, falling back to the generic "فارما" brand when unset. Exposes
+        no stock, prices, or anything sensitive — name and logo only, and only
+        for ACTIVE tenants. Cached; throttled like the other public endpoints.
+      tags:
+      - public
+      responses:
+        '200':
+          description: No response body
+  /api/v1/public/branding/icon/:
+    get:
+      operationId: public_branding_icon_retrieve
+      description: |-
+        The store logo as a ready-to-install PWA icon (square PNG).
+
+        The manifest needs concrete 192/512 PNGs; tenants upload arbitrary logo
+        images. This endpoint square-pads and resizes the stored logo with Pillow.
+        `?maskable=1` adds the ~20% safe-zone padding maskable icons require, on
+        the app's background colour. 404 when the tenant has no logo — the
+        frontend then keeps the default icons. Result bytes are cached.
+      tags:
+      - public
+      responses:
+        '200':
+          description: No response body
+  /api/v1/public/price-check/:
+    get:
+      operationId: public_price_check_retrieve
+      description: |-
+        Customer-facing price lookup — NO login, aggressively throttled.
+
+        Shoppers scan a product in the aisle and see its price without queueing.
+        Exposes only what a customer may see (name, price, category, in-stock
+        yes/no) — never cost, stock counts, or anything else. Served from the
+        Redis POS catalogue when warm; indexed exact-barcode DB hit otherwise.
+      tags:
+      - public
+      responses:
+        '200':
+          description: No response body
+  /api/v1/public/product-qr/:
+    get:
+      operationId: public_product_qr_retrieve
+      description: |-
+        GET /public/product-qr/?store=<slug>&barcode=<code> → a PNG QR.
+
+        A customer standing in the store scans a product, then shows this QR to
+        a relative so they can open the same product on their own phone — no login,
+        no app, no trip to the store.
+
+        Public on purpose (the price page it points at is public), but deliberately
+        narrow:
+
+        * it can ONLY ever encode a URL on this store's own price page. The
+          barcode is the sole caller-supplied part and it is percent-encoded into a
+          query string, so this can never be turned into a QR pointing somewhere
+          else — an open QR generator would otherwise be a nice phishing tool
+          wearing a store's logo.
+        * unknown or suspended tenant → 404, same as every other public endpoint.
+        * throttled in the price-check bucket, and cached: the QR for a given
+          (store, barcode) never changes.
+      tags:
+      - public
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/public/scan-log/:
+    post:
+      operationId: public_scan_log_create
+      description: |-
+        Anonymous, fire-and-forget scan counter for the price-check kiosk.
+
+        The shopper's browser beacons here in the background after each scan (see
+        the /price scanner) — no auth, no body it waits on, no response it reads. We
+        just bump a per-day Redis counter for the store; the nightly
+        `flush_scan_counters` command folds those into ScanDaily for the Reports
+        "تقارير المسح" section. ALWAYS returns 204 (even on bad/missing input) so a
+        beacon can never surface anything to the customer, and this never touches
+        the price-lookup path.
+      tags:
+      - public
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/public/stats/:
+    get:
+      operationId: public_stats_retrieve
+      description: |-
+        Public, aggregate-only platform stats for the marketing site.
+
+        Deliberately platform-wide and NON-identifying — this is the "network
+        effect" number the strategy wants to advertise. Returns total shared-catalog
+        products covered, total listings, active stores, and a coverage
+        breakdown by category NAME. It exposes NO store names, prices, stock, or
+        any per-tenant detail, so nothing here can identify or cross a tenant.
+        Cached, and throttled like the other public endpoint.
+
+        DELIBERATELY EXEMPT from the StoreResolved 400 guard: this is the one
+        central marketing endpoint — platform-wide by design, no store exists.
+      tags:
+      - public
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/purchase-orders/:
+    get:
+      operationId: purchase_orders_list
+      description: |-
+        Owner-only purchase orders — draft, receive (raises stock + refreshes
+        cost), and history. Tenant-scoped via StoreScopedMixin.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - purchase-orders
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPurchaseOrderList'
+          description: ''
+    post:
+      operationId: purchase_orders_create
+      description: |-
+        Owner-only purchase orders — draft, receive (raises stock + refreshes
+        cost), and history. Tenant-scoped via StoreScopedMixin.
+      tags:
+      - purchase-orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseOrderRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PurchaseOrderRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PurchaseOrderRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+          description: ''
+  /api/v1/purchase-orders/{id}/:
+    get:
+      operationId: purchase_orders_retrieve
+      description: |-
+        Owner-only purchase orders — draft, receive (raises stock + refreshes
+        cost), and history. Tenant-scoped via StoreScopedMixin.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Purchase order.
+        required: true
+      tags:
+      - purchase-orders
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+          description: ''
+    patch:
+      operationId: purchase_orders_partial_update
+      description: |-
+        Owner-only purchase orders — draft, receive (raises stock + refreshes
+        cost), and history. Tenant-scoped via StoreScopedMixin.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Purchase order.
+        required: true
+      tags:
+      - purchase-orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPurchaseOrderRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPurchaseOrderRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPurchaseOrderRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+          description: ''
+    delete:
+      operationId: purchase_orders_destroy
+      description: |-
+        Owner-only purchase orders — draft, receive (raises stock + refreshes
+        cost), and history. Tenant-scoped via StoreScopedMixin.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Purchase order.
+        required: true
+      tags:
+      - purchase-orders
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/purchase-orders/{id}/receive/:
+    post:
+      operationId: purchase_orders_receive_create
+      description: |-
+        Owner-only purchase orders — draft, receive (raises stock + refreshes
+        cost), and history. Tenant-scoped via StoreScopedMixin.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Purchase order.
+        required: true
+      tags:
+      - purchase-orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseOrderRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PurchaseOrderRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PurchaseOrderRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+          description: ''
+  /api/v1/qr/price-page/:
+    get:
+      operationId: qr_price_page_retrieve
+      description: |-
+        GET /qr/price-page/ — the store's price-check QR, logo in the middle.
+
+        Renders a high-error-correction QR for https://<slug>.<root>/price with
+        the tenant's logo centered on a white pad (30% of the QR stays readable
+        even with the overlay — that's what ERROR_CORRECT_H is for). Owners only;
+        meant for printing / sharing with customers. ?download=1 forces a file
+        download.
+      tags:
+      - qr
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/export/:
+    get:
+      operationId: reports_export_retrieve
+      description: GET /reports/export/?report=issues|top_products|summary — xlsx
+        download.
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/filtered-charts/:
+    get:
+      operationId: reports_filtered_charts_retrieve
+      description: |-
+        GET /reports/filtered-charts/?issue=...&<same params as products>
+
+        Valuation + category breakdown over the SAME filtered queryset the products
+        table shows — so the two reports-page charts reflect the active filter.
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/products/:
+    get:
+      operationId: reports_products_retrieve
+      description: |-
+        GET /reports/products/?issue=zero_price&search=&page=&page_size=
+
+        The products behind one inventory-issue KPI — or `issue=all` to run
+        the advanced filters against the ENTIRE catalogue. Filterable, sortable,
+        paginated. Knobs: low_stock_threshold, dead_days, include_equal, plus
+        advanced ranges: price_min/price_max, stock_min/stock_max, category.
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/restock-quota/:
+    get:
+      operationId: reports_restock_quota_retrieve
+      description: |-
+        Owner-only purchase quota — what to restock, rough buy cost, projected
+        gain. Gated by the `inventory` module (every store has it) instead of the
+        paid `reports` tier, so purchasing works for any owner.
+
+        GET /api/v1/reports/restock-quota/?days=30&cover_days=30&low_stock_threshold=5
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/sales/export/:
+    get:
+      operationId: reports_sales_export_retrieve
+      description: GET /reports/sales/export/?days=30 — the sales report as xlsx.
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/sales/summary/:
+    get:
+      operationId: reports_sales_summary_retrieve
+      description: |-
+        GET /reports/sales/summary/?days=30 — deep sales analytics.
+
+        Its OWN paid module ("sales_reports"), separate from inventory reports:
+        a tenant can buy either or both. Cached 5 min per (store, days).
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/scans/:
+    get:
+      operationId: reports_scans_retrieve
+      description: |-
+        Owner-only price-check scan analytics — the Reports "تقارير المسح"
+        section. Its OWN paid module ("scan_reports"), separate from the inventory
+        reports tier, so it can be sold / toggled per store independently.
+
+        GET /api/v1/reports/scans/?days=30 — cached 60s per (store, days).
+        DELETE /api/v1/reports/scans/ — owner wipes ALL scan analytics.
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: reports_scans_destroy
+      description: |-
+        Owner clears ALL price-scan analytics for the store: the stored
+        rows, the live Redis counters (so nothing re-appears on the next flush),
+        and the cached report payloads.
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/reports/summary/:
+    get:
+      operationId: reports_summary_retrieve
+      description: |-
+        GET /reports/summary/?days=30 — issues + valuation + categories + sales.
+
+        CACHED per (store, days) for 5 minutes: the summary fans out into a
+        dozen aggregates, which gets expensive on 20k+ listings. Reports are
+        analytics, not live ops — five-minute staleness is the right trade.
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/teaser/:
+    get:
+      operationId: reports_teaser_retrieve
+      description: |-
+        GET /reports/teaser/ — REAL but limited numbers for the upsell card.
+
+        Deliberately open to ANY authenticated staff member (no reports module,
+        no owner role): a few counts + the top seller's name. Cached 10 min.
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/top-products/:
+    get:
+      operationId: reports_top_products_retrieve
+      description: GET /reports/top-products/?days=30&by=qty|revenue&direction=top|bottom&limit=10
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/sales/:
+    get:
+      operationId: sales_list
+      description: |-
+        POS sales: create at checkout, browse history, delete to void.
+
+        - search:  ?search=  over customer name/phone, note, and the sale's item
+                     names + barcodes (so a scanned barcode finds sales containing
+                     that product)
+        - filter:  ?customer=<id> ?payment_method=cash|debt ?item=<name|barcode>
+        - sort:    ?ordering=-created_at | discounted_total ...
+        Deleting a sale restores stock and removes its linked (unpaid) debt.
+      parameters:
+      - in: query
+        name: created_after
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_before
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: created_by
+        schema:
+          type: integer
+      - in: query
+        name: customer
+        schema:
+          type: number
+      - in: query
+        name: is_return
+        schema:
+          type: boolean
+      - in: query
+        name: item
+        schema:
+          type: string
+      - in: query
+        name: max_price
+        schema:
+          type: number
+      - in: query
+        name: min_price
+        schema:
+          type: number
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: payment_method
+        schema:
+          type: string
+          enum:
+          - cash
+          - debt
+        description: |-
+          * `cash` - Cash
+          * `debt` - Debt
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - sales
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSaleList'
+          description: ''
+    post:
+      operationId: sales_create
+      description: |-
+        POS sales: create at checkout, browse history, delete to void.
+
+        - search:  ?search=  over customer name/phone, note, and the sale's item
+                     names + barcodes (so a scanned barcode finds sales containing
+                     that product)
+        - filter:  ?customer=<id> ?payment_method=cash|debt ?item=<name|barcode>
+        - sort:    ?ordering=-created_at | discounted_total ...
+        Deleting a sale restores stock and removes its linked (unpaid) debt.
+      tags:
+      - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaleRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sale'
+          description: ''
+  /api/v1/sales/{id}/:
+    get:
+      operationId: sales_retrieve
+      description: |-
+        POS sales: create at checkout, browse history, delete to void.
+
+        - search:  ?search=  over customer name/phone, note, and the sale's item
+                     names + barcodes (so a scanned barcode finds sales containing
+                     that product)
+        - filter:  ?customer=<id> ?payment_method=cash|debt ?item=<name|barcode>
+        - sort:    ?ordering=-created_at | discounted_total ...
+        Deleting a sale restores stock and removes its linked (unpaid) debt.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Sale.
+        required: true
+      tags:
+      - sales
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sale'
+          description: ''
+    delete:
+      operationId: sales_destroy
+      description: |-
+        POS sales: create at checkout, browse history, delete to void.
+
+        - search:  ?search=  over customer name/phone, note, and the sale's item
+                     names + barcodes (so a scanned barcode finds sales containing
+                     that product)
+        - filter:  ?customer=<id> ?payment_method=cash|debt ?item=<name|barcode>
+        - sort:    ?ordering=-created_at | discounted_total ...
+        Deleting a sale restores stock and removes its linked (unpaid) debt.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Sale.
+        required: true
+      tags:
+      - sales
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/sales/bulk_delete/:
+    post:
+      operationId: sales_bulk_delete_create
+      description: |-
+        Owner-only wipe of sales — stock restored, linked unpaid debts removed.
+        Body: {"ids": [...]} or {"all": true}. Scoped to the requester's store,
+        so foreign ids match nothing.
+
+        Batched: stock reversals are aggregated per product and applied with one
+        UPDATE each (F-expression, so still atomic and exact), and debts + sales
+        are deleted in bulk. Wiping thousands of imported invoices is a few dozen
+        queries instead of tens of thousands — it no longer ties up a worker.
+      tags:
+      - sales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaleRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sale'
+          description: ''
+  /api/v1/sales/stats/:
+    get:
+      operationId: sales_stats_retrieve
+      description: |-
+        Sales analytics in one Redis-cached call.
+
+        `GET /api/v1/sales/stats/` → period totals (today/yesterday/7d/this
+        month/last month/all time), 30-day category split, 14-day daily
+        series, and the 30-day cash-vs-debt split.
+      tags:
+      - sales
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sale'
+          description: ''
+  /api/v1/staff/:
+    get:
+      operationId: staff_list
+      description: |-
+        Owner-managed staff for ONE store — /api/v1/staff/.
+
+        Owner-only (OwnerRequired) and tenant-scoped BY HAND: accounts.User has no
+        TenantManager, so every read filters on the requester's store and every
+        write stamps it — a user id from another store 404s. No hard delete:
+        accounts are DEACTIVATED (is_active=False), never removed, so the
+        created_by trail on sales stays intact. Deliberately NOT mounted under
+        /api/v1/auth/ (that prefix is exempt from the tenant 400 guard); it lives on
+        the store router so StoreResolved applies.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - staff
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStaffList'
+          description: ''
+    post:
+      operationId: staff_create
+      description: |-
+        Owner-managed staff for ONE store — /api/v1/staff/.
+
+        Owner-only (OwnerRequired) and tenant-scoped BY HAND: accounts.User has no
+        TenantManager, so every read filters on the requester's store and every
+        write stamps it — a user id from another store 404s. No hard delete:
+        accounts are DEACTIVATED (is_active=False), never removed, so the
+        created_by trail on sales stays intact. Deliberately NOT mounted under
+        /api/v1/auth/ (that prefix is exempt from the tenant 400 guard); it lives on
+        the store router so StoreResolved applies.
+      tags:
+      - staff
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+  /api/v1/staff/{id}/:
+    get:
+      operationId: staff_retrieve
+      description: |-
+        Owner-managed staff for ONE store — /api/v1/staff/.
+
+        Owner-only (OwnerRequired) and tenant-scoped BY HAND: accounts.User has no
+        TenantManager, so every read filters on the requester's store and every
+        write stamps it — a user id from another store 404s. No hard delete:
+        accounts are DEACTIVATED (is_active=False), never removed, so the
+        created_by trail on sales stays intact. Deliberately NOT mounted under
+        /api/v1/auth/ (that prefix is exempt from the tenant 400 guard); it lives on
+        the store router so StoreResolved applies.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - staff
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+    patch:
+      operationId: staff_partial_update
+      description: |-
+        Owner-managed staff for ONE store — /api/v1/staff/.
+
+        Owner-only (OwnerRequired) and tenant-scoped BY HAND: accounts.User has no
+        TenantManager, so every read filters on the requester's store and every
+        write stamps it — a user id from another store 404s. No hard delete:
+        accounts are DEACTIVATED (is_active=False), never removed, so the
+        created_by trail on sales stays intact. Deliberately NOT mounted under
+        /api/v1/auth/ (that prefix is exempt from the tenant 400 guard); it lives on
+        the store router so StoreResolved applies.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - staff
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+  /api/v1/staff/{id}/reset-password/:
+    post:
+      operationId: staff_reset_password_create
+      description: |-
+        Owner-managed staff for ONE store — /api/v1/staff/.
+
+        Owner-only (OwnerRequired) and tenant-scoped BY HAND: accounts.User has no
+        TenantManager, so every read filters on the requester's store and every
+        write stamps it — a user id from another store 404s. No hard delete:
+        accounts are DEACTIVATED (is_active=False), never removed, so the
+        created_by trail on sales stays intact. Deliberately NOT mounted under
+        /api/v1/auth/ (that prefix is exempt from the tenant 400 guard); it lives on
+        the store router so StoreResolved applies.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - staff
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+  /api/v1/store/branding/:
+    patch:
+      operationId: store_branding_partial_update
+      description: |-
+        Owner-only branding for the requester's store — logo + display name.
+
+        PATCH /api/v1/store/branding/  (multipart/form-data)
+          logo_file=<image>   optional — stored to B2, kept as a b2:// marker
+          name=<str>          optional — store display name
+
+        Tenant identity comes ONLY from request.user (request_pharmacy_id) — the
+        client never names the store. Mirrors the Django-admin logo flow,
+        including clearing the public-branding cache so the change shows at once.
+      tags:
+      - store
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/variants/:
+    get:
+      operationId: variants_list
+      description: CRUD for a product's variants (sub-SKUs with their own price/stock).
+      parameters:
+      - in: query
+        name: barcode
+        schema:
+          type: string
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: product
+        schema:
+          type: number
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - variants
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProductVariantList'
+          description: ''
+    post:
+      operationId: variants_create
+      description: CRUD for a product's variants (sub-SKUs with their own price/stock).
+      tags:
+      - variants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductVariantRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductVariantRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductVariantRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductVariant'
+          description: ''
+  /api/v1/variants/{id}/:
+    get:
+      operationId: variants_retrieve
+      description: CRUD for a product's variants (sub-SKUs with their own price/stock).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Product variant.
+        required: true
+      tags:
+      - variants
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductVariant'
+          description: ''
+    put:
+      operationId: variants_update
+      description: CRUD for a product's variants (sub-SKUs with their own price/stock).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Product variant.
+        required: true
+      tags:
+      - variants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductVariantRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProductVariantRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductVariantRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductVariant'
+          description: ''
+    patch:
+      operationId: variants_partial_update
+      description: CRUD for a product's variants (sub-SKUs with their own price/stock).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Product variant.
+        required: true
+      tags:
+      - variants
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProductVariantRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProductVariantRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProductVariantRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductVariant'
+          description: ''
+    delete:
+      operationId: variants_destroy
+      description: CRUD for a product's variants (sub-SKUs with their own price/stock).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this Product variant.
+        required: true
+      tags:
+      - variants
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+components:
+  schemas:
+    Category:
+      type: object
+      description: Name + how many meds use it (fed to the searchable dropdowns).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        count:
+          type: integer
+          readOnly: true
+          default: 0
+      required:
+      - count
+      - id
+      - name
+    CategoryRequest:
+      type: object
+      description: Name + how many meds use it (fed to the searchable dropdowns).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+      required:
+      - name
+    CustomTokenObtainPairRequest:
+      type: object
+      description: |-
+        Login response includes the serialized user alongside the tokens.
+
+        Accepts an optional `store` (slug) field: usernames are unique per
+        store, so tenant sites send their own slug to pin the lookup. The
+        slug reaches PharmacyScopedBackend via authenticate(store_slug=...);
+        kwargs-unaware backends are skipped by Django automatically.
+      properties:
+        store:
+          type: string
+          writeOnly: true
+        username:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - password
+      - username
+    Customer:
+      type: object
+      description: |-
+        Customer profile (managed by staff; customers never log in).
+
+        Set `avatar` to a URL directly, OR upload via `avatar_file`. `outstanding`
+        is the sum of `discounted_total` across the customer's unpaid debts.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        phone:
+          type: string
+          nullable: true
+          maxLength: 40
+        gender:
+          $ref: '#/components/schemas/GenderEnum'
+        avatar:
+          type: string
+          format: uri
+          maxLength: 1000
+        notes:
+          type: string
+        status:
+          type: string
+          maxLength: 255
+        outstanding:
+          type: string
+          readOnly: true
+        client_uuid:
+          type: string
+          nullable: true
+          maxLength: 64
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - outstanding
+      - updated_at
+    CustomerRequest:
+      type: object
+      description: |-
+        Customer profile (managed by staff; customers never log in).
+
+        Set `avatar` to a URL directly, OR upload via `avatar_file`. `outstanding`
+        is the sum of `discounted_total` across the customer's unpaid debts.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        phone:
+          type: string
+          nullable: true
+          maxLength: 40
+        gender:
+          $ref: '#/components/schemas/GenderEnum'
+        avatar:
+          type: string
+          format: uri
+          maxLength: 1000
+        avatar_file:
+          type: string
+          format: binary
+          writeOnly: true
+        notes:
+          type: string
+        status:
+          type: string
+          maxLength: 255
+        client_uuid:
+          type: string
+          nullable: true
+          maxLength: 64
+      required:
+      - name
+    Debt:
+      type: object
+      description: |-
+        A debt with its meds.
+
+        - `total` is computed from the items at purchase time and is READ-ONLY.
+        - `discounted_total` defaults to `total`; send it to override (a discount).
+        - Each item snapshots the med's name and price, so later catalogue changes
+          never rewrite an existing debt.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        customer:
+          type: integer
+        customer_name:
+          type: string
+          readOnly: true
+        customer_phone:
+          type: string
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DebtItem'
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        discounted_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        is_paid:
+          type: boolean
+        note:
+          type: string
+        client_uuid:
+          type: string
+          nullable: true
+          maxLength: 64
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - created_by_name
+      - customer
+      - customer_name
+      - customer_phone
+      - id
+      - total
+      - updated_at
+    DebtItem:
+      type: object
+      description: A single med line inside a debt. `line_total` is computed server-side.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          type: integer
+          nullable: true
+        variant:
+          type: integer
+          nullable: true
+        medication_name:
+          type: string
+          maxLength: 255
+        variant_label:
+          type: string
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        line_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - id
+      - line_total
+      - variant_label
+    DebtItemRequest:
+      type: object
+      description: A single med line inside a debt. `line_total` is computed server-side.
+      properties:
+        product:
+          type: integer
+          nullable: true
+        variant:
+          type: integer
+          nullable: true
+        medication_name:
+          type: string
+          maxLength: 255
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+    DebtRequest:
+      type: object
+      description: |-
+        A debt with its meds.
+
+        - `total` is computed from the items at purchase time and is READ-ONLY.
+        - `discounted_total` defaults to `total`; send it to override (a discount).
+        - Each item snapshots the med's name and price, so later catalogue changes
+          never rewrite an existing debt.
+      properties:
+        customer:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DebtItemRequest'
+        discounted_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          writeOnly: true
+        is_paid:
+          type: boolean
+        note:
+          type: string
+        client_uuid:
+          type: string
+          nullable: true
+          maxLength: 64
+      required:
+      - customer
+    GenderEnum:
+      enum:
+      - male
+      - female
+      type: string
+      description: |-
+        * `male` - Male
+        * `female` - Female
+    LogoutRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    Manufacturer:
+      type: object
+      description: Name + how many meds use it (fed to the searchable dropdowns).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        count:
+          type: integer
+          readOnly: true
+          default: 0
+      required:
+      - count
+      - id
+      - name
+    ManufacturerRequest:
+      type: object
+      description: Name + how many meds use it (fed to the searchable dropdowns).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+      - name
+    PaginatedCategoryList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+    PaginatedCustomerList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+    PaginatedDebtList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Debt'
+    PaginatedManufacturerList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Manufacturer'
+    PaginatedProductList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+    PaginatedProductVariantList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariant'
+    PaginatedPurchaseOrderList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrder'
+    PaginatedSaleList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sale'
+    PaginatedStaffList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Staff'
+    PatchedCategoryRequest:
+      type: object
+      description: Name + how many meds use it (fed to the searchable dropdowns).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+    PatchedCustomerRequest:
+      type: object
+      description: |-
+        Customer profile (managed by staff; customers never log in).
+
+        Set `avatar` to a URL directly, OR upload via `avatar_file`. `outstanding`
+        is the sum of `discounted_total` across the customer's unpaid debts.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        phone:
+          type: string
+          nullable: true
+          maxLength: 40
+        gender:
+          $ref: '#/components/schemas/GenderEnum'
+        avatar:
+          type: string
+          format: uri
+          maxLength: 1000
+        avatar_file:
+          type: string
+          format: binary
+          writeOnly: true
+        notes:
+          type: string
+        status:
+          type: string
+          maxLength: 255
+        client_uuid:
+          type: string
+          nullable: true
+          maxLength: 64
+    PatchedDebtRequest:
+      type: object
+      description: |-
+        A debt with its meds.
+
+        - `total` is computed from the items at purchase time and is READ-ONLY.
+        - `discounted_total` defaults to `total`; send it to override (a discount).
+        - Each item snapshots the med's name and price, so later catalogue changes
+          never rewrite an existing debt.
+      properties:
+        customer:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DebtItemRequest'
+        discounted_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          writeOnly: true
+        is_paid:
+          type: boolean
+        note:
+          type: string
+        client_uuid:
+          type: string
+          nullable: true
+          maxLength: 64
+    PatchedManufacturerRequest:
+      type: object
+      description: Name + how many meds use it (fed to the searchable dropdowns).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+    PatchedProductRequest:
+      type: object
+      description: |-
+        Full CRUD for a med.
+
+        Images: `image`/`image_file` is the MAIN photo (URL or upload, as before).
+        `images` reads the ordered secondary gallery as [{id, url}]; upload more
+        via `image_files` (repeat the key for several files) and delete existing
+        ones via `remove_images` ("3,7" — ids). Max 8 secondary photos.
+        `category` / `manufacturer` read and write as plain name strings.
+      properties:
+        source_id:
+          type: string
+          maxLength: 64
+        name:
+          type: string
+          maxLength: 255
+        barcode:
+          type: string
+          maxLength: 120
+        original_number:
+          type: string
+          maxLength: 120
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Retail price
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        brand:
+          type: string
+          maxLength: 255
+        manufacturer:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+        expiry_alert_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        notes:
+          type: string
+        image:
+          type: string
+          format: uri
+          maxLength: 1000
+        video_url:
+          type: string
+          format: uri
+          maxLength: 1000
+        attributes: {}
+        image_file:
+          type: string
+          format: binary
+          writeOnly: true
+        image_files:
+          type: array
+          items:
+            type: string
+            format: binary
+          writeOnly: true
+        image_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+            minLength: 1
+            maxLength: 1000
+          writeOnly: true
+        remove_images:
+          type: string
+          writeOnly: true
+        client_uuid:
+          type: string
+          nullable: true
+          maxLength: 64
+    PatchedProductVariantRequest:
+      type: object
+      description: A sellable sub-SKU (color / size / flavor) with its own price and
+        stock.
+      properties:
+        product:
+          type: integer
+        label:
+          type: string
+          minLength: 1
+          maxLength: 255
+        attributes: {}
+        barcode:
+          type: string
+          maxLength: 120
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        image:
+          type: string
+          format: uri
+          maxLength: 1000
+        is_active:
+          type: boolean
+    PatchedPurchaseOrderRequest:
+      type: object
+      properties:
+        supplier:
+          type: string
+          maxLength: 255
+        note:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseItemRequest'
+    PatchedStaffRequest:
+      type: object
+      description: |-
+        Owner-managed staff record for ONE store.
+
+        Writable role + per-user module grants (`allowed_modules`) + active flag.
+        `password` is write-only: required on create, optional on edit (or set via
+        the viewset's reset-password action). Tenant scoping and owner-only access
+        are enforced by the viewset; this serializer validates the payload and the
+        two safety rules — no privilege escalation beyond the store's own tier,
+        and never lock the store out of its last owner / deactivate yourself.
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: فريد داخل الصيدلية الواحدة (وليس عبر النظام).
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        display_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        allowed_modules: {}
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        password:
+          type: string
+          writeOnly: true
+          minLength: 4
+    PatchedUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: فريد داخل الصيدلية الواحدة (وليس عبر النظام).
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        display_name:
+          type: string
+          maxLength: 150
+        avatar:
+          type: string
+          format: binary
+          nullable: true
+        profile_image_url:
+          type: string
+          format: uri
+          maxLength: 500
+    PaymentMethodEnum:
+      enum:
+      - cash
+      - debt
+      type: string
+      description: |-
+        * `cash` - Cash
+        * `debt` - Debt
+    Product:
+      type: object
+      description: |-
+        Full CRUD for a med.
+
+        Images: `image`/`image_file` is the MAIN photo (URL or upload, as before).
+        `images` reads the ordered secondary gallery as [{id, url}]; upload more
+        via `image_files` (repeat the key for several files) and delete existing
+        ones via `remove_images` ("3,7" — ids). Max 8 secondary photos.
+        `category` / `manufacturer` read and write as plain name strings.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        source_id:
+          type: string
+          maxLength: 64
+        name:
+          type: string
+          maxLength: 255
+        barcode:
+          type: string
+          maxLength: 120
+        original_number:
+          type: string
+          maxLength: 120
+        alt_barcodes:
+          readOnly: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Retail price
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        brand:
+          type: string
+          maxLength: 255
+        manufacturer:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+        expiry_alert_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        expiry_status:
+          type: string
+          nullable: true
+          readOnly: true
+        days_to_expiry:
+          type: integer
+          nullable: true
+          readOnly: true
+        notes:
+          type: string
+        image:
+          type: string
+          format: uri
+          maxLength: 1000
+        video_url:
+          type: string
+          format: uri
+          maxLength: 1000
+        attributes: {}
+        additional_metadata:
+          readOnly: true
+        duplicated_products:
+          readOnly: true
+        images:
+          type: array
+          items: {}
+          readOnly: true
+        catalog_item:
+          type: integer
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariant'
+          readOnly: true
+        client_uuid:
+          type: string
+          nullable: true
+          maxLength: 64
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - additional_metadata
+      - alt_barcodes
+      - catalog_item
+      - created_at
+      - days_to_expiry
+      - duplicated_products
+      - expiry_status
+      - id
+      - images
+      - product_name
+      - updated_at
+      - variants
+    ProductRequest:
+      type: object
+      description: |-
+        Full CRUD for a med.
+
+        Images: `image`/`image_file` is the MAIN photo (URL or upload, as before).
+        `images` reads the ordered secondary gallery as [{id, url}]; upload more
+        via `image_files` (repeat the key for several files) and delete existing
+        ones via `remove_images` ("3,7" — ids). Max 8 secondary photos.
+        `category` / `manufacturer` read and write as plain name strings.
+      properties:
+        source_id:
+          type: string
+          maxLength: 64
+        name:
+          type: string
+          maxLength: 255
+        barcode:
+          type: string
+          maxLength: 120
+        original_number:
+          type: string
+          maxLength: 120
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          title: Retail price
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        brand:
+          type: string
+          maxLength: 255
+        manufacturer:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+        expiry_alert_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        notes:
+          type: string
+        image:
+          type: string
+          format: uri
+          maxLength: 1000
+        video_url:
+          type: string
+          format: uri
+          maxLength: 1000
+        attributes: {}
+        image_file:
+          type: string
+          format: binary
+          writeOnly: true
+        image_files:
+          type: array
+          items:
+            type: string
+            format: binary
+          writeOnly: true
+        image_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+            minLength: 1
+            maxLength: 1000
+          writeOnly: true
+        remove_images:
+          type: string
+          writeOnly: true
+        client_uuid:
+          type: string
+          nullable: true
+          maxLength: 64
+    ProductVariant:
+      type: object
+      description: A sellable sub-SKU (color / size / flavor) with its own price and
+        stock.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          type: integer
+        label:
+          type: string
+          maxLength: 255
+        attributes: {}
+        barcode:
+          type: string
+          maxLength: 120
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        image:
+          type: string
+          format: uri
+          maxLength: 1000
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - label
+      - product
+      - updated_at
+    ProductVariantRequest:
+      type: object
+      description: A sellable sub-SKU (color / size / flavor) with its own price and
+        stock.
+      properties:
+        product:
+          type: integer
+        label:
+          type: string
+          minLength: 1
+          maxLength: 255
+        attributes: {}
+        barcode:
+          type: string
+          maxLength: 120
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        stock:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        image:
+          type: string
+          format: uri
+          maxLength: 1000
+        is_active:
+          type: boolean
+      required:
+      - label
+      - product
+    PurchaseItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product_id:
+          type: integer
+          nullable: true
+        medication_name:
+          type: string
+          maxLength: 255
+        barcode:
+          type: string
+          maxLength: 64
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        line_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - id
+      - line_total
+    PurchaseItemRequest:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          nullable: true
+        medication_name:
+          type: string
+          maxLength: 255
+        barcode:
+          type: string
+          maxLength: 64
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+    PurchaseOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        supplier:
+          type: string
+          maxLength: 255
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        note:
+          type: string
+        total_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        received_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_by_name:
+          type: string
+          readOnly: true
+          default: ''
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseItem'
+      required:
+      - created_at
+      - created_by_name
+      - id
+      - items
+      - received_at
+      - status
+      - total_cost
+    PurchaseOrderRequest:
+      type: object
+      properties:
+        supplier:
+          type: string
+          maxLength: 255
+        note:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseItemRequest'
+      required:
+      - items
+    RoleEnum:
+      enum:
+      - owner
+      - employee
+      type: string
+      description: |-
+        * `owner` - مالك الصيدلية
+        * `employee` - موظف
+    Sale:
+      type: object
+      description: |-
+        A POS checkout with its lines.
+
+        - `total` is computed from the items and READ-ONLY; `discounted_total`
+          defaults to `total` (send a lower value for a discount).
+        - `payment_method="debt"` requires a `customer` and creates a linked Debt
+          so the amount appears in the customer's balance.
+        - Stock is decremented on create (restored by the viewset on delete).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        customer:
+          type: integer
+          nullable: true
+        customer_name:
+          type: string
+          readOnly: true
+        customer_phone:
+          type: string
+          readOnly: true
+        payment_method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        is_return:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleItem'
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        discounted_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        debt:
+          type: integer
+          readOnly: true
+          nullable: true
+        note:
+          type: string
+        client_uuid:
+          type: string
+          nullable: true
+          maxLength: 64
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - created_by_name
+      - customer_name
+      - customer_phone
+      - debt
+      - id
+      - items
+      - total
+      - updated_at
+    SaleItem:
+      type: object
+      description: A single med line inside a sale. `line_total` is computed server-side.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        product:
+          type: integer
+          nullable: true
+        variant:
+          type: integer
+          nullable: true
+        medication_name:
+          type: string
+          maxLength: 255
+        variant_label:
+          type: string
+          readOnly: true
+        category:
+          type: string
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+        line_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - category
+      - id
+      - line_total
+      - variant_label
+    SaleItemRequest:
+      type: object
+      description: A single med line inside a sale. `line_total` is computed server-side.
+      properties:
+        product:
+          type: integer
+          nullable: true
+        variant:
+          type: integer
+          nullable: true
+        medication_name:
+          type: string
+          maxLength: 255
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,9}(?:\.\d{0,3})?$
+    SaleRequest:
+      type: object
+      description: |-
+        A POS checkout with its lines.
+
+        - `total` is computed from the items and READ-ONLY; `discounted_total`
+          defaults to `total` (send a lower value for a discount).
+        - `payment_method="debt"` requires a `customer` and creates a linked Debt
+          so the amount appears in the customer's balance.
+        - Stock is decremented on create (restored by the viewset on delete).
+      properties:
+        customer:
+          type: integer
+          nullable: true
+        payment_method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        is_return:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleItemRequest'
+        discounted_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        note:
+          type: string
+        client_uuid:
+          type: string
+          nullable: true
+          maxLength: 64
+      required:
+      - items
+    Staff:
+      type: object
+      description: |-
+        Owner-managed staff record for ONE store.
+
+        Writable role + per-user module grants (`allowed_modules`) + active flag.
+        `password` is write-only: required on create, optional on edit (or set via
+        the viewset's reset-password action). Tenant scoping and owner-only access
+        are enforced by the viewset; this serializer validates the payload and the
+        two safety rules — no privilege escalation beyond the store's own tier,
+        and never lock the store out of its last owner / deactivate yourself.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: فريد داخل الصيدلية الواحدة (وليس عبر النظام).
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        display_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        allowed_modules: {}
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        is_owner:
+          type: string
+          readOnly: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+      required:
+      - date_joined
+      - id
+      - is_owner
+      - last_login
+      - username
+    StaffRequest:
+      type: object
+      description: |-
+        Owner-managed staff record for ONE store.
+
+        Writable role + per-user module grants (`allowed_modules`) + active flag.
+        `password` is write-only: required on create, optional on edit (or set via
+        the viewset's reset-password action). Tenant scoping and owner-only access
+        are enforced by the viewset; this serializer validates the payload and the
+        two safety rules — no privilege escalation beyond the store's own tier,
+        and never lock the store out of its last owner / deactivate yourself.
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: فريد داخل الصيدلية الواحدة (وليس عبر النظام).
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        display_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        allowed_modules: {}
+        is_active:
+          type: boolean
+          title: Active
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        password:
+          type: string
+          writeOnly: true
+          minLength: 4
+      required:
+      - username
+    StatusEnum:
+      enum:
+      - draft
+      - received
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `received` - Received
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        store:
+          type: integer
+          readOnly: true
+          nullable: true
+        pharmacy_name:
+          type: string
+          readOnly: true
+          default: ''
+        store_slug:
+          type: string
+          readOnly: true
+          default: ''
+        pharmacy_phone:
+          type: string
+          readOnly: true
+          default: ''
+        pharmacy_address:
+          type: string
+          readOnly: true
+          default: ''
+        pharmacy_expiry_alert_days:
+          type: integer
+          readOnly: true
+          default: 30
+        pharmacy_logo:
+          type: string
+          readOnly: true
+        modules:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        username:
+          type: string
+          description: فريد داخل الصيدلية الواحدة (وليس عبر النظام).
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        display_name:
+          type: string
+          maxLength: 150
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+        profile_image_url:
+          type: string
+          format: uri
+          maxLength: 500
+        is_staff:
+          type: boolean
+          readOnly: true
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - date_joined
+      - id
+      - is_staff
+      - modules
+      - pharmacy_address
+      - pharmacy_expiry_alert_days
+      - pharmacy_logo
+      - pharmacy_name
+      - pharmacy_phone
+      - role
+      - store
+      - store_slug
+      - username
+    UserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: فريد داخل الصيدلية الواحدة (وليس عبر النظام).
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 20
+        display_name:
+          type: string
+          maxLength: 150
+        avatar:
+          type: string
+          format: binary
+          nullable: true
+        profile_image_url:
+          type: string
+          format: uri
+          maxLength: 500
+      required:
+      - username
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
