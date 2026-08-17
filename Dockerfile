@@ -14,7 +14,7 @@ ARG NEXT_PUBLIC_API_BASE_URL=https://almawdah-api.clinixa.cloud
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 
 # Which tenant this frontend build serves (public price page scope).
-ARG NEXT_PUBLIC_PHARMACY_SLUG=mawadda
+ARG NEXT_PUBLIC_PHARMACY_SLUG=almawdah
 ENV NEXT_PUBLIC_PHARMACY_SLUG=$NEXT_PUBLIC_PHARMACY_SLUG
 
 ARG NEXT_PUBLIC_SITE_MODE=store
@@ -48,6 +48,16 @@ ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
 
 ARG NEXT_PUBLIC_CLARITY_ID=
 ENV NEXT_PUBLIC_CLARITY_ID=$NEXT_PUBLIC_CLARITY_ID
+
+# Source-map upload. Same rule as every ARG above: undeclared build args are
+# dropped by Docker, so without these three the build still succeeds and you
+# just get minified stack traces in Sentry with nothing to tell you why.
+ARG SENTRY_AUTH_TOKEN=
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+ARG SENTRY_ORG=broken-dudes
+ENV SENTRY_ORG=$SENTRY_ORG
+ARG SENTRY_PROJECT=almawdah-frontend
+ENV SENTRY_PROJECT=$SENTRY_PROJECT
 
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
