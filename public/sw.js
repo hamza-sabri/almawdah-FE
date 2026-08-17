@@ -1,16 +1,26 @@
 /*
- * Pharma POS service worker — offline app shell.
+ * POS service worker — offline app shell.
  *
- * Goal: the POS keeps loading when Qalqilya's internet/power blips. We cache
+ * Goal: the app keeps loading when the shop's internet/power blips. We cache
  * the Next.js app shell + static assets so a reload works offline; the sale
- * data itself is handled in the app (IndexedDB catalogue cache + offline sale
- * queue). We NEVER cache API writes.
+ * data itself is handled in the app (IndexedDB catalogue cache + offline read
+ * cache + offline sale queue). We NEVER cache API writes.
  *
  * Strategies:
- *   - navigations  → network-first, fall back to the cached page (or "/")
+ *   - navigations  → network-first, fall back to THIS route's cached page
+ *   - RSC payloads (?_rsc=) → passed through; never cached (see below)
  *   - static (_next/static, icons, fonts, images) → stale-while-revalidate
- *   - cross-origin (Django API, Convex, analytics) → left untouched
+ *   - cross-origin (Django API, analytics) → left untouched
  *   - non-GET (POST/PUT sales, cart-state) → never intercepted
+ *
+ * Why precache EVERY app route, not just "/pos": with the App Router, moving
+ * between pages in the running app is an RSC fetch, not a navigation — so
+ * browsing the app online never fills the navigation cache. Only a hard load
+ * (typed URL, F5, or the installed PWA's start_url) does. That is exactly how
+ * "/pos works offline but /inventory shows the offline page" happens: /pos was
+ * precached at install, /inventory was never a navigation the worker saw.
+ * Precaching the whole route list at install removes that dependency on where
+ * the user happened to press reload.
  */
 
 // Version every cache by the build id passed in the registration URL
@@ -24,21 +34,67 @@ const VERSION = (() => {
   }
 })()
 
-const NAV_CACHE = `pharma-nav-${VERSION}`
-const STATIC_CACHE = `pharma-static-${VERSION}`
+const NAV_CACHE = `pos-nav-${VERSION}`
+const STATIC_CACHE = `pos-static-${VERSION}`
 const KEEP = new Set([NAV_CACHE, STATIC_CACHE])
 
-const PRECACHE_ROUTES = ["/login", "/pos", "/price", "/debts", "/customers"]
+// Every page a user can land on: the nav rail's routes, plus /login and
+// /price. lib/offline/sw-routes.test.ts fails if a page is added under
+// app/(app)/ and not listed here.
+const PRECACHE_ROUTES = [
+  "/login",
+  "/pos",
+  "/inventory",
+  "/inventory/stats",
+  "/sales",
+  "/purchases",
+  "/reports",
+  "/settings",
+  "/customers",
+  "/debts",
+  "/debts/stats",
+  "/price",
+]
+
+/**
+ * A cached HTML shell is useless without the chunks it loads: offline the
+ * document renders and then dies on a failed <script src="/_next/static/…">.
+ * Next names those per build, so we can't hardcode them — we read them back
+ * out of the HTML we just precached and warm them into the static cache.
+ */
+async function warmAssetsFrom(html, cache) {
+  const urls = new Set()
+  const re = /\/_next\/static\/[^"'\s>)]+/g
+  let m
+  while ((m = re.exec(html)) !== null) {
+    // Strip HTML entities that can trail a URL inside an attribute.
+    urls.add(m[0].replace(/&amp;/g, "&"))
+  }
+  await Promise.allSettled(
+    [...urls].map(async (u) => {
+      if (await cache.match(u)) return
+      try {
+        const res = await fetch(u, { credentials: "same-origin" })
+        if (res.ok) await cache.put(u, res.clone())
+      } catch {
+        /* one missing chunk shouldn't fail the install */
+      }
+    }),
+  )
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(NAV_CACHE)
+      const nav = await caches.open(NAV_CACHE)
+      const stat = await caches.open(STATIC_CACHE)
       await Promise.allSettled(
         PRECACHE_ROUTES.map(async (route) => {
           try {
             const res = await fetch(route, { credentials: "same-origin" })
-            if (res.ok) await cache.put(route, res.clone())
+            if (!res.ok) return
+            await nav.put(route, res.clone())
+            await warmAssetsFrom(await res.text(), stat)
           } catch {
             return
           }
@@ -106,6 +162,14 @@ self.addEventListener("fetch", (event) => {
     )
     return
   }
+
+  // App Router client-side navigation is an RSC fetch (`?_rsc=…`), not a
+  // navigation. We deliberately do NOT serve those from cache: an RSC payload
+  // is keyed to a router state tree, and replaying a stale one renders a
+  // broken tree instead of failing cleanly. Left alone it fails offline, Next
+  // falls back to a full navigation, and the branch above answers that from
+  // the nav cache — which is why precaching every route above matters.
+  if (url.searchParams.has("_rsc")) return
 
   if (isStaticAsset(url)) {
     event.respondWith(

@@ -3,6 +3,7 @@
 import {
   CheckCircle2,
   Clock,
+  CloudOff,
   HandCoins,
   Package,
   User as UserIcon,
@@ -19,6 +20,7 @@ import {
 import { RowActions } from "@/components/row-actions"
 import { cn } from "@/lib/utils"
 import { formatDate, formatMoney, toNumber } from "@/lib/format"
+import { LOCAL_SALE_LABEL, isLocalSale } from "@/lib/offline/local-sale"
 import type { DebtRow } from "@/components/debt-detail-dialog"
 
 function StatusPill({ paid }: { paid?: boolean }) {
@@ -100,8 +102,19 @@ export function DebtsTable({
                         )}
                       </span>
                       <div className="min-w-0">
-                        <div className="truncate font-semibold">
-                          {d.customer_name || "زبون"}
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate font-semibold">
+                            {d.customer_name || "زبون"}
+                          </span>
+                          {isLocalSale(d.id) && (
+                            <span
+                              className="pill pill-warning shrink-0 gap-1 text-[10px]"
+                              title="دين من بيع تم أثناء انقطاع الاتصال — سيُرفع تلقائياً عند عودة الشبكة"
+                            >
+                              <CloudOff className="size-3" />
+                              {LOCAL_SALE_LABEL}
+                            </span>
+                          )}
                         </div>
                         {d.customer_phone && (
                           <div
@@ -142,9 +155,15 @@ export function DebtsTable({
                 </TableCell>
                 {showActions && (
                   <TableCell onClick={(e) => e.stopPropagation()}>
+                    {/* Every action here PATCHes/DELETEs /debts/<id>/. A debt
+                        that came out of the offline queue has no server id
+                        yet (it's negative), so offer nothing until it syncs
+                        rather than firing a request at id=-1. */}
                     <RowActions
                       extra={
-                        d.is_paid
+                        isLocalSale(d.id)
+                          ? []
+                          : d.is_paid
                           ? onMarkUnpaid
                             ? [
                                 {
@@ -179,8 +198,14 @@ export function DebtsTable({
                                 : []),
                             ]
                       }
-                      onEdit={onEdit ? () => onEdit(d) : undefined}
-                      onDelete={onDelete ? () => onDelete(d) : undefined}
+                      onEdit={
+                        onEdit && !isLocalSale(d.id) ? () => onEdit(d) : undefined
+                      }
+                      onDelete={
+                        onDelete && !isLocalSale(d.id)
+                          ? () => onDelete(d)
+                          : undefined
+                      }
                     />
                   </TableCell>
                 )}

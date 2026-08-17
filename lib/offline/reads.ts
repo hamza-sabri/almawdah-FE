@@ -42,10 +42,38 @@ function keyFor(url: string): string | null {
   return null
 }
 
+/**
+ * The sales list is cached under ONE key, so a filtered response would
+ * overwrite the offline base with a subset — browse to "دين" online, go
+ * offline, and the unfiltered history silently shows only debt sales. Only the
+ * unfiltered first page earns the slot; the offline reader applies filters
+ * itself.
+ */
+const SALES_FILTER_PARAMS = [
+  "payment_method",
+  "is_return",
+  "item",
+  "customer",
+  "created_after",
+  "created_before",
+  "min_price",
+  "max_price",
+  "created_by",
+  "search",
+]
+
+function isCacheableSalesList(url: string): boolean {
+  const u = new URL(url, "http://x")
+  if (SALES_FILTER_PARAMS.some((p) => u.searchParams.get(p))) return false
+  const page = Number(u.searchParams.get("page")) || 1
+  return page === 1
+}
+
 /** Write-through cache for a successful online GET. */
 export async function cacheReadResponse(url: string, data: unknown): Promise<void> {
   const k = keyFor(url)
   if (!k || data === undefined) return
+  if (k === "read:sales:list" && !isCacheableSalesList(url)) return
   try {
     await idbPut(STORE_KV, { at: Date.now(), data }, k)
   } catch {
@@ -192,15 +220,27 @@ export async function localReadResponse<T>(url: string): Promise<T | null> {
     return ok({ count: cat.length, next: null, previous: null, results: cat }) as T
   }
 
-  // Product grid list — serve from the cached catalogue, filtered by
-  // ?search=/?barcode= and paginated, so products still SHOW offline instead
-  // of erroring.
+  // Product grid list — serve from the cached catalogue, filtered/sorted/
+  // paginated, so products still SHOW offline instead of erroring.
+  //
+  // The filters matter as much as the rows: /inventory renders its chips from
+  // the URL regardless of connectivity, so if we ignored ?category= the page
+  // would claim to be filtered while listing everything. Anything the cached
+  // catalogue can't answer (expiry dates aren't in it) is left alone rather
+  // than faked.
   if (path.endsWith("/products/")) {
     const cat = await readCachedCatalog()
     if (!cat) return null
     const u = new URL(url, "http://x")
+    // Filters the catalogue can't express. Better to fail into the page's
+    // retry state than to hand back an unfiltered list under a filter chip.
+    if (u.searchParams.get("expiry") || u.searchParams.get("manufacturer"))
+      return null
     const search = (u.searchParams.get("search") || "").trim().toLowerCase()
     const barcode = (u.searchParams.get("barcode") || "").trim()
+    const category = (u.searchParams.get("category") || "").trim()
+    const stockState = u.searchParams.get("stock_state") || ""
+    const ordering = u.searchParams.get("ordering") || ""
     const pageSize = Number(u.searchParams.get("page_size")) || 30
     const page = Number(u.searchParams.get("page")) || 1
     let rows = cat
@@ -211,6 +251,31 @@ export async function localReadResponse<T>(url: string): Promise<T | null> {
           m.name.toLowerCase().includes(search) ||
           (m.barcode || "").includes(search),
       )
+    if (category) rows = rows.filter((m) => (m.category || "") === category)
+    if (stockState === "out") rows = rows.filter((m) => Number(m.stock) <= 0)
+    else if (stockState === "in") rows = rows.filter((m) => Number(m.stock) > 0)
+    // 5 mirrors ProductViewSet.LOW_STOCK_MAX on the backend. If that ever
+    // becomes owner-configurable, this needs to read the same value.
+    else if (stockState === "low")
+      rows = rows.filter((m) => Number(m.stock) > 0 && Number(m.stock) <= 5)
+
+    if (ordering) {
+      const desc = ordering.startsWith("-")
+      const field = desc ? ordering.slice(1) : ordering
+      const num = (m: (typeof rows)[number]) =>
+        field === "price" ? Number(m.price) : Number(m.stock)
+      if (field === "name" || field === "price" || field === "stock") {
+        rows = [...rows].sort((a, b) => {
+          const d =
+            field === "name"
+              ? a.name.localeCompare(b.name, "ar")
+              : num(a) - num(b)
+          return desc ? -d : d
+        })
+      }
+      // -created_at / expiry_date: the catalogue carries neither, so we serve
+      // the catalogue's own order rather than a wrong one.
+    }
     const start = (page - 1) * pageSize
     const results = rows.slice(start, start + pageSize).map((m) => ({
       id: m.id,
@@ -280,11 +345,63 @@ export async function localReadResponse<T>(url: string): Promise<T | null> {
     return ok({ count: results.length, next: null, previous: null, results }) as T
   }
 
+  // Sales history: the last page fetched online, with the sales still sitting
+  // in the offline queue merged in front (negative ids — see
+  // lib/offline/local-sale.ts, which is what puts the "بانتظار المزامنة" pill
+  // on those rows). Queued sales are the ones the cashier most needs to see
+  // offline, so they lead the list.
+  //
+  // The page's filter chips render from state regardless of connectivity, so
+  // the filters we CAN apply we do, and the ones we can't we refuse — a chip
+  // reading "دين" above a list of cash sales is worse than a retry button.
   if (k === "read:sales:list") {
+    const u = new URL(url, "http://x")
+    const unsupported = [
+      "item",
+      "customer",
+      "min_price",
+      "max_price",
+      "created_by",
+    ]
+    if (unsupported.some((p) => u.searchParams.get(p))) return null
+
     const local = await queuedAsSales()
     const prev = (await cached<{ results?: Sale[] }>(k))?.results ?? []
-    const results = [...local, ...prev]
-    return ok({ count: results.length, next: null, previous: null, results }) as T
+    let rows = [...local, ...prev]
+
+    const payment = u.searchParams.get("payment_method")
+    if (payment) rows = rows.filter((s) => s.payment_method === payment)
+    const isReturn = u.searchParams.get("is_return")
+    if (isReturn === "true") rows = rows.filter((s) => Boolean(s.is_return))
+    else if (isReturn === "false") rows = rows.filter((s) => !s.is_return)
+    const after = u.searchParams.get("created_after")
+    if (after) rows = rows.filter((s) => s.created_at >= after)
+    const before = u.searchParams.get("created_before")
+    // created_before is a date; a sale ON that day must be included.
+    if (before) rows = rows.filter((s) => s.created_at <= `${before}T23:59:59`)
+
+    const ordering = u.searchParams.get("ordering") || "-created_at"
+    const desc = ordering.startsWith("-")
+    const field = desc ? ordering.slice(1) : ordering
+    if (field === "created_at" || field === "discounted_total") {
+      rows = [...rows].sort((a, b) => {
+        const d =
+          field === "created_at"
+            ? a.created_at.localeCompare(b.created_at)
+            : Number(a.discounted_total) - Number(b.discounted_total)
+        return desc ? -d : d
+      })
+    }
+
+    const pageSize = Number(u.searchParams.get("page_size")) || 30
+    const page = Number(u.searchParams.get("page")) || 1
+    const start = (page - 1) * pageSize
+    return ok({
+      count: rows.length,
+      next: start + pageSize < rows.length ? `http://x/?page=${page + 1}` : null,
+      previous: page > 1 ? `http://x/?page=${page - 1}` : null,
+      results: rows.slice(start, start + pageSize),
+    }) as T
   }
 
   if (k === "read:sales:stats") {

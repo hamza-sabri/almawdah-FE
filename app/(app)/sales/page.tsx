@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import {
   Banknote,
   CalendarDays,
+  CloudOff,
   Package,
   Printer,
   ReceiptText,
@@ -35,6 +36,11 @@ import { loadPrintSettings } from "@/lib/print/settings"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { useIsOwner } from "@/lib/modules"
+import {
+  LOCAL_SALE_LABEL,
+  isLocalSale,
+  saleNumberLabel,
+} from "@/lib/offline/local-sale"
 import { bulkDeleteSales } from "@/api/products"
 
 import { PageHeader } from "@/components/page-header"
@@ -158,7 +164,11 @@ function SaleDetail({
                     <DialogTitle className="truncate font-heading text-lg font-bold text-white">
                       {sale.customer_name || "زبون نقدي"}
                     </DialogTitle>
-                    <p className="text-xs text-white/55">بيع رقم {sale.id}</p>
+                    {/* A queued sale has no server number yet — showing
+                        "بيع رقم -1" would read as a data bug. */}
+                    <p className="text-xs text-white/55">
+                      {saleNumberLabel(sale.id)}
+                    </p>
                   </div>
                 </div>
                 <span
@@ -259,13 +269,22 @@ function SaleDetail({
                 <Printer className="size-4" />
                 طباعة الفاتورة
               </button>
+              {/* Voiding PATCHes /sales/<id>/. A queued sale has no server id
+                  yet, so the call would go out as -1. Fix it at the source in
+                  the POS (or wait for the sync) instead. */}
               <button
                 type="button"
+                disabled={isLocalSale(sale.id)}
+                title={
+                  isLocalSale(sale.id)
+                    ? "لا يمكن إلغاء بيع لم تتم مزامنته بعد — انتظر عودة الاتصال"
+                    : undefined
+                }
                 onClick={() => {
                   onOpenChange(false)
                   onVoid(sale)
                 }}
-                className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium text-destructive transition hover:bg-destructive/10"
+                className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium text-destructive transition hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-40"
               >
                 <Trash2 className="size-4" />
                 إلغاء البيع (استرجاع المخزون)
@@ -741,8 +760,19 @@ export default function SalesPage() {
                           )}
                         </span>
                         <div className="min-w-0">
-                          <div className="truncate font-semibold">
-                            {s.customer_name || "زبون نقدي"}
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate font-semibold">
+                              {s.customer_name || "زبون نقدي"}
+                            </span>
+                            {isLocalSale(s.id) && (
+                              <span
+                                className="pill pill-warning shrink-0 gap-1 text-[10px]"
+                                title="بيع تم أثناء انقطاع الاتصال — سيُرفع تلقائياً عند عودة الشبكة"
+                              >
+                                <CloudOff className="size-3" />
+                                {LOCAL_SALE_LABEL}
+                              </span>
+                            )}
                           </div>
                           {s.customer_phone && (
                             <div

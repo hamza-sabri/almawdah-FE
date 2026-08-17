@@ -11,6 +11,11 @@ __v0_jsx-dev-runtime.ts
 
 # Common ignores
 node_modules
+# The repo's lockfile is pnpm-lock.yaml. The Dockerfile installs with
+# `npm install --legacy-peer-deps`, so a package-lock.json created by a local
+# npm install would silently become the production build's resolution source.
+# Keep it out of the repo.
+package-lock.json
 .next/
 *.tsbuildinfo
 .DS_Store
