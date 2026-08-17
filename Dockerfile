@@ -34,24 +34,41 @@ ARG NEXT_PUBLIC_CONVEX_URL=https://majestic-egret-857.convex.cloud
 ENV NEXT_PUBLIC_CONVEX_URL=$NEXT_PUBLIC_CONVEX_URL
 
 # Error monitoring (Sentry) + session recordings (Microsoft Clarity).
-# NOTE: every NEXT_PUBLIC_* value is inlined by Next at BUILD time, so it must
-# be declared as an ARG here. Setting it only in Dokploy's build args is not
-# enough — Docker drops any build arg the Dockerfile never declares, and the
-# feature then silently disables itself with no error anywhere.
-# Both default to empty on purpose: a tenant without its own id/DSN reports
-# nothing, instead of mixing into another store's project.
-ARG NEXT_PUBLIC_SENTRY_DSN=
+#
+# NOTE: every NEXT_PUBLIC_* value is inlined by Next at BUILD time. Dokploy's
+# runtime "Environment Settings" box does NOT reach the build — build args are
+# a separate field — so a value set only there silently disables the feature
+# with no error anywhere. That is exactly what happened here: the DSN and the
+# Clarity id were in the runtime box, the build compiled them as empty
+# strings, and both Sentry and Clarity were dead while the settings page
+# looked perfectly configured.
+#
+# So these are hardcoded as ARG DEFAULTS, the same way the API base URL and
+# the vertical already are. Neither is a secret: a Sentry CLIENT DSN and a
+# Clarity project id both ship inside the browser bundle by design — anyone
+# can read them with View Source. Baking them in removes the whole class of
+# "which Dokploy field was it" failure. A build arg still overrides them.
+#
+# IMPORTANT: this is the right call for THIS single-customer repo. Do NOT
+# copy it back into retail-frontend-template — there the empty default is
+# what stops one tenant's sessions landing in another tenant's project.
+ARG NEXT_PUBLIC_SENTRY_DSN=https://dbf5828239ef1ef74c483ff697917b49@o4505886940921856.ingest.us.sentry.io/4511927759536128
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 
 ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
 ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
 
-ARG NEXT_PUBLIC_CLARITY_ID=
+ARG NEXT_PUBLIC_CLARITY_ID=y3xn6e0oda
 ENV NEXT_PUBLIC_CLARITY_ID=$NEXT_PUBLIC_CLARITY_ID
 
-# Source-map upload. Same rule as every ARG above: undeclared build args are
-# dropped by Docker, so without these three the build still succeeds and you
-# just get minified stack traces in Sentry with nothing to tell you why.
+# Source-map upload. Deliberately NOT defaulted like the two above: unlike a
+# client DSN this is a real credential that can write to the Sentry org, so it
+# must not live in git. It has to come from Dokploy's BUILD ARGS field (the
+# runtime Environment box will not reach the build).
+#
+# Without it the build still succeeds and Sentry still works — you just get
+# minified stack traces, and `silent: true` in next.config.mjs means nothing
+# warns you. That is a nuisance, not an outage: fix it when convenient.
 ARG SENTRY_AUTH_TOKEN=
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 ARG SENTRY_ORG=broken-dudes
