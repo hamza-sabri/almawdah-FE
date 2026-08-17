@@ -22,7 +22,7 @@ import { getPharmacySlug } from "@/lib/site"
 
 export type Branding = { name: string; logo: string }
 
-export const DEFAULT_BRAND_NAME = "فارما"
+export const DEFAULT_BRAND_NAME = "سوبر ماركت المودة"
 export const DEFAULT_ICON_192 = "/icons/icon-192.png"
 export const DEFAULT_ICON_512 = "/icons/icon-512.png"
 export const DEFAULT_ICON_MASKABLE = "/icons/icon-maskable-512.png"

@@ -30,9 +30,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-const PillsScene = dynamic(() => import("@/components/three/pills-scene"), {
-  ssr: false,
-})
 
 const schema = z.object({
   username: z.string().min(1, "أدخل اسم المستخدم"),
@@ -131,10 +128,6 @@ function LoginForm() {
     <main className="grid min-h-dvh lg:grid-cols-2">
       {/* ── Showcase ink panel ─────────────────────────────────────── */}
       <section className="ink-panel animate-in fade-in relative m-3 hidden flex-col justify-between overflow-hidden rounded-[28px] p-10 duration-700 lg:flex">
-        <PillsScene
-          variant="full"
-          className="pointer-events-none absolute inset-0"
-        />
         <div className="panel-anim relative flex items-center gap-3">
           <BrandMark className="size-11" />
           <span className="font-heading text-lg font-bold text-white">

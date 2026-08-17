@@ -58,7 +58,7 @@ export function useBranding() {
   })
 
   return {
-    /** Store name, or "فارما" when unknown. */
+    /** Store name, or the deployment default when unknown. */
     name: data?.name?.trim() || DEFAULT_BRAND_NAME,
     /** Store logo URL, or "" when the tenant has none (use the default mark). */
     logo: data?.logo || "",

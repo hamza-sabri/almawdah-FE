@@ -1127,7 +1127,9 @@ export default function PosPage() {
     const input = buildPayload(pos)
     if (input) pageCheckout.mutate(input)
   }
-  const [mode, setMode] = useState<"grid" | "table">("grid")
+  // Table is the default view for this store — the cashier works from a
+  // barcode scanner and a list, not a picture grid.
+  const [mode, setMode] = useState<"grid" | "table">("table")
   const [searchRaw, setSearchRaw] = useState("")
   const search = useDebounced(searchRaw, 250)
   // A hardware scanner types its burst anywhere — capture it without needing
@@ -1148,7 +1150,7 @@ export default function PosPage() {
   const [printOpen, setPrintOpen] = useState(false)
   useEffect(() => {
     const m = window.localStorage.getItem("alrahmah_pos_mode")
-    if (m === "table") setMode("table")
+    if (m === "grid") setMode("grid")
     setMutedState(isMuted())
   }, [])
   function switchMode(m: "grid" | "table") {
