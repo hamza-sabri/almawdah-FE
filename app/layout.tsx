@@ -1,4 +1,3 @@
-import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { IBM_Plex_Sans_Arabic, IBM_Plex_Mono, Alexandria } from 'next/font/google'
 import { Clarity } from '@/components/clarity'
@@ -100,12 +99,11 @@ export default async function RootLayout({
         <Providers>{children}</Providers>
         <SwRegister />
         <Toaster position="top-center" richColors />
-        {process.env.NODE_ENV === 'production' && (
-          <>
-            <Analytics />
-            <Clarity />
-          </>
-        )}
+        {/* Vercel Analytics removed: this deploys to a Hostinger VPS behind
+            Traefik, so its script had no collector to talk to — a dead request
+            on every page load, on a till that is often on a weak connection.
+            Clarity is the analytics for this deployment. */}
+        {process.env.NODE_ENV === 'production' && <Clarity />}
       </body>
     </html>
   )
