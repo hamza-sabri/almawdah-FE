@@ -40,7 +40,7 @@ import {
 } from "@/api/purchases"
 import { hasModule, useIsOwner, useModules } from "@/lib/modules"
 import { useDebounced } from "@/hooks/use-debounced"
-import { formatDate, formatMoney, formatNumber, toNumber } from "@/lib/format"
+import { formatDate, formatMoney, formatNumber, sanitizeQtyInput, toNumber } from "@/lib/format"
 import { PageHeader } from "@/components/page-header"
 import { InlineScanner } from "@/components/scan/inline-scanner"
 import type { ScanFeedback } from "@/components/scan/scan-dialog"
@@ -889,7 +889,10 @@ export default function PurchasesPage() {
                     </Button>
                     <input
                       value={bulkAmount}
-                      onChange={(e) => setBulkAmount(e.target.value)}
+                      // Same rule as the POS quantity: numbers only.
+                      onChange={(e) =>
+                        setBulkAmount(sanitizeQtyInput(e.target.value))
+                      }
                       inputMode="numeric"
                       placeholder="كمية"
                       className="h-8 w-16 rounded-md border bg-background text-center text-sm tabular-nums"
@@ -1083,8 +1086,17 @@ export default function PurchasesPage() {
                                 <input
                                   value={l.qty}
                                   onChange={(e) => {
-                                    const n = parseInt(e.target.value, 10)
-                                    if (Number.isFinite(n)) setQty(l.medicationId, n)
+                                    // parseInt("2kg") is 2 — the text stayed
+                                    // on screen while the value silently
+                                    // diverged. Filter first, then parse.
+                                    const clean = sanitizeQtyInput(
+                                      e.target.value,
+                                    )
+                                    const n = parseInt(clean, 10)
+                                    setQty(
+                                      l.medicationId,
+                                      Number.isFinite(n) ? n : 0,
+                                    )
                                   }}
                                   inputMode="numeric"
                                   aria-label="الكمية"

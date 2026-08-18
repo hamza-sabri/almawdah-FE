@@ -55,7 +55,12 @@ import {
   type CartVariant,
 } from "@/hooks/use-pos-carts"
 import { useStaggerCards } from "@/hooks/use-stagger-cards"
-import { formatMoney, formatNumber, toNumber } from "@/lib/format"
+import {
+  formatMoney,
+  formatNumber,
+  sanitizeQtyInput,
+  toNumber,
+} from "@/lib/format"
 import { isMuted, playBeep, setMuted } from "@/lib/beep"
 import { cn } from "@/lib/utils"
 
@@ -632,7 +637,7 @@ const SCAN_MAX_GAP = 80 // ms between keys that still counts as one burst
  *  can immediately type the new quantity. It stays scanner-safe: a fast barcode
  *  burst typed while it's focused is redirected to `onScanBurst` (and never
  *  lands in the quantity), and a plain Enter fires `onSubmitSale`. */
-function QtyEditor({
+export function QtyEditor({
   value,
   onChange,
   focusSignal,
@@ -691,8 +696,21 @@ function QtyEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusSignal])
   function commit() {
-    const n = parseFloat(text.replace(",", "."))
-    onChange(!isFinite(n) || n <= 0 ? 0 : roundQty(n))
+    const raw = text.trim()
+    // Blank means "take this line off the sale" — that is deliberate and
+    // documented above. A half-typed "." is NOT the same thing: it used to
+    // parse to NaN, fall into the same branch, and delete the line. Put the
+    // previous quantity back instead.
+    if (raw === "") {
+      onChange(0)
+      return
+    }
+    const n = parseFloat(raw)
+    if (!isFinite(n)) {
+      setText(formatQty(value))
+      return
+    }
+    onChange(n <= 0 ? 0 : roundQty(n))
   }
   function onKeyDown(e: { key: string; preventDefault: () => void }) {
     const now = Date.now()
@@ -745,10 +763,16 @@ function QtyEditor({
         <input
           ref={inputRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          // Numbers only — fractions allowed (0.5 kg of tomatoes is a real
+          // sale), text never. See sanitizeQtyInput: a letter reaching
+          // commit() becomes NaN, which this component treats as 0, which
+          // deletes the line. One mistyped key must not remove an item from
+          // the customer's basket.
+          onChange={(e) => setText(sanitizeQtyInput(e.target.value))}
           onBlur={commit}
           onKeyDown={onKeyDown}
           inputMode="decimal"
+          autoComplete="off"
           dir="ltr"
           className="h-7 w-12 rounded-lg border bg-card text-center text-sm font-bold tabular-nums outline-none focus:ring-2 focus:ring-primary/30"
           aria-label="الكمية"
