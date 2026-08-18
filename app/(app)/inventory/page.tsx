@@ -64,6 +64,15 @@ import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
+/** Every barcode that resolves this product: primary + the extras. */
+function productCodes(m: Product): string[] {
+  const alts = (m as { alt_barcodes?: unknown }).alt_barcodes
+  return [
+    m.barcode,
+    ...(Array.isArray(alts) ? alts.map(String) : []),
+  ].filter((c): c is string => Boolean(c))
+}
+
 const SORT_OPTIONS = [
   { value: "name", label: "الاسم (أ–ي)" },
   { value: "-price", label: "الأعلى سعراً" },
@@ -395,7 +404,11 @@ function MedicationsPageInner() {
     if (!openBarcode || isLoading || openHandled.current === openBarcode) return
     openHandled.current = openBarcode
 
-    const hits = items.filter((m) => m.barcode === openBarcode)
+    // ANY of the product's codes, not just the primary one. Matching only
+    // `barcode` meant scanning a product's second sticker fell through to
+    // "no match → create it", which silently offers to make a DUPLICATE of
+    // an item the shop already has.
+    const hits = items.filter((m) => productCodes(m).includes(openBarcode))
     if (hits.length === 1) {
       setEditing(hits[0])
       setPresetBarcode("")

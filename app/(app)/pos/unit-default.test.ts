@@ -64,3 +64,15 @@ describe("the POS defaults to a single piece", () => {
     expect(SRC).toContain("<UnitCell")
   })
 })
+
+describe("every barcode a product has is searchable, not just scannable", () => {
+  it("the POS search box matches the extra codes too", () => {
+    // The gap the shop hit: a code you can SCAN but cannot TYPE. Scanning
+    // resolved the extras (byBarcode indexes them); the search box filtered
+    // on `barcode` alone — so a code the scanner accepted returned nothing
+    // when keyed in by hand, which is exactly when the sticker is torn.
+    const fn = SRC.slice(SRC.indexOf("const matches = useMemo"))
+    expect(fn).toContain("m.alt_barcodes")
+  })
+})
+

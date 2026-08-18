@@ -244,12 +244,19 @@ export async function localReadResponse<T>(url: string): Promise<T | null> {
     const pageSize = Number(u.searchParams.get("page_size")) || 30
     const page = Number(u.searchParams.get("page")) || 1
     let rows = cat
-    if (barcode) rows = rows.filter((m) => (m.barcode || "") === barcode)
+    // A product can carry several barcodes (shelf label, supplier box, unit
+    // code on a multipack). Offline has to resolve ALL of them, or the same
+    // scan that works online reports "not found" the moment the line drops.
+    const codesOf = (m: { barcode?: string; alt_barcodes?: string[] }) => [
+      m.barcode || "",
+      ...(m.alt_barcodes ?? []),
+    ]
+    if (barcode) rows = rows.filter((m) => codesOf(m).includes(barcode))
     else if (search)
       rows = rows.filter(
         (m) =>
           m.name.toLowerCase().includes(search) ||
-          (m.barcode || "").includes(search),
+          codesOf(m).some((c) => c.includes(search)),
       )
     if (category) rows = rows.filter((m) => (m.category || "") === category)
     if (stockState === "out") rows = rows.filter((m) => Number(m.stock) <= 0)

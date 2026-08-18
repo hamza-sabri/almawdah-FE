@@ -11,7 +11,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
  */
 
 const CATALOG = [
-  { id: 1, name: "بندورة", barcode: "111", price: "7.00", stock: 12, category: "خضار" },
+  {
+    id: 1,
+    name: "بندورة",
+    barcode: "111",
+    // A second sticker on the same item — must resolve offline too.
+    alt_barcodes: ["111-ALT", "6291234567890"],
+    price: "7.00",
+    stock: 12,
+    category: "خضار",
+  },
   { id: 2, name: "فول", barcode: "222", price: "3.00", stock: 0, category: "معلبات" },
   { id: 3, name: "أرز", barcode: "333", price: "11.00", stock: 3, category: "معلبات" },
 ]
@@ -87,5 +96,22 @@ describe("offline /products/ answers the inventory page's filters", () => {
   it("ignores an ordering it cannot honour instead of erroring", async () => {
     const p = await list("?ordering=-created_at")
     expect(p.count).toBe(3)
+  })
+
+  it("resolves ANY of a product's barcodes, not just the primary", async () => {
+    // Offline used to match `barcode` only, so the same scan that worked
+    // online reported "not found" the moment the line dropped.
+    expect((await list("?barcode=111-ALT")).results.map((r) => r.name)).toEqual([
+      "بندورة",
+    ])
+    expect(
+      (await list("?barcode=6291234567890")).results.map((r) => r.name),
+    ).toEqual(["بندورة"])
+  })
+
+  it("searches the extra barcodes too", async () => {
+    expect((await list("?search=6291234")).results.map((r) => r.name)).toEqual([
+      "بندورة",
+    ])
   })
 })

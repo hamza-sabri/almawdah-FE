@@ -1182,7 +1182,13 @@ function TableMode({
       .filter(
         (m) =>
           m.name.toLowerCase().includes(query) ||
-          (m.barcode || "").startsWith(query),
+          // ANY of the product's codes. Scanning already resolved the extras
+          // (byBarcode indexes them); typing them here did not — so a code the
+          // scanner accepted returned nothing when the cashier keyed it in,
+          // which is what happens when the sticker is torn.
+          [m.barcode || "", ...(m.alt_barcodes ?? [])].some((c) =>
+            c.toLowerCase().startsWith(query),
+          ),
       )
       .slice(0, 8)
   }, [query, catalog])
