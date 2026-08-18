@@ -51,6 +51,8 @@ export type SalePayload = {
     variant?: number | null
     medication_name?: string
     unit_price?: string
+    /** The catalogue price, when the cashier overrode it at the till. */
+    original_unit_price?: string
     quantity: number
   }>
   discounted_total?: string

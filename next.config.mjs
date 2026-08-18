@@ -11,6 +11,43 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_BUILD_ID: process.env.NEXT_PUBLIC_BUILD_ID ?? Date.now().toString(),
   },
+  /**
+   * Local development against a REMOTE backend, without touching its CORS
+   * config.
+   *
+   * Production CORS only allows https://*.clinixa.cloud, so a dev server on
+   * http://localhost:3000 is refused by the browser on every request. Rather
+   * than widen production's origin list (and restart the API while the shop is
+   * trading), proxy through Next: the browser only ever talks to
+   * localhost:3000, and the Next server forwards to the real API. Same origin,
+   * so CORS never enters into it.
+   *
+   *   DEV_API_PROXY=https://almawdah-api.clinixa.cloud npm run dev
+   *
+   * No-op when the variable is unset, so production builds are unaffected.
+   */
+  /**
+   * Django's URLs all END IN A SLASH (APPEND_SLASH). Next, by default,
+   * 308-redirects "/api/v1/auth/login/" to "/api/v1/auth/login" BEFORE the
+   * rewrite below can run — so every proxied call arrives at a path Django
+   * does not serve, and the browser shows a redirect followed by a 403 with
+   * no obvious cause. Verified: without this, POST /api/v1/auth/login/
+   * returns 308 to the de-slashed path.
+   *
+   * Harmless in production, where nothing is proxied.
+   */
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    const target = process.env.DEV_API_PROXY
+    if (!target) return []
+    // The trailing slash must be put back EXPLICITLY. Django's URLs all end
+    // in one (APPEND_SLASH), and Next normalises it away on the rewrite
+    // destination even with skipTrailingSlashRedirect — verified against an
+    // echo server: the backend received "/api/v1/auth/login", not
+    // "/api/v1/auth/login/". Query strings are appended by Next afterwards,
+    // so "?page=1" still arrives intact.
+    return [{ source: "/api/:path*", destination: `${target}/api/:path*/` }]
+  },
   // Produce a self-contained server bundle for a small Docker runtime image.
   output: "standalone",
   typescript: {

@@ -25,7 +25,14 @@ export type CartLine = {
   variantId?: number | null
   name: string
   variantLabel?: string
+  /** What is being CHARGED — this is what the customer pays. */
   unitPrice: string
+  /**
+   * The catalogue price when the line was added, kept only so an override can
+   * be recognised later. Set on every line; the sale records it ONLY when it
+   * differs from unitPrice.
+   */
+  basePrice?: string
   quantity: number
 }
 
@@ -391,12 +398,81 @@ export function usePosCarts() {
               name: med.name ?? "",
               variantLabel: variant?.label ?? "",
               unitPrice: variant ? String(variant.price) : med.price ?? "0",
+              basePrice: variant ? String(variant.price) : med.price ?? "0",
               quantity: 1,
             },
           ],
         }
       })
       setLastAdded((p) => ({ key, tick: p.tick + 1 }))
+    },
+    [patchActive],
+  )
+
+  /**
+   * Switch a line between the loose piece and one of the product's pack
+   * units, in place.
+   *
+   * The POS adds every product as a single PIECE, always — the packs the
+   * Shamel import created (عبوة ×24 and friends) are a secondary selling unit,
+   * not a required choice, and forcing the cashier to answer "which one?" on a
+   * chocolate bar that costs ₪1 is wrong far more often than it is right. This
+   * is the escape hatch for the times it IS a whole box.
+   *
+   * The quantity is preserved: 3 pieces → 3 boxes, not 3 pieces of a box. The
+   * line key stays the same so nothing re-renders or loses focus.
+   */
+  const setLineUnit = useCallback(
+    (key: string, variant: CartVariant | null, basePrice: string | number) => {
+      patchActive((c) => ({
+        lines: c.lines.map((l) =>
+          l.key === key
+            ? {
+                ...l,
+                variantId: variant?.id ?? null,
+                variantLabel: variant?.label ?? "",
+                unitPrice: variant ? String(variant.price) : String(basePrice),
+                // Changing the unit re-bases the price: a box at its own list
+                // price is not "an overridden piece price".
+                basePrice: variant ? String(variant.price) : String(basePrice),
+              }
+            : l,
+        ),
+      }))
+    },
+    [patchActive],
+  )
+
+  /**
+   * Set a line's CHARGED price, from the cashier editing the line total.
+   *
+   * They type into المجموع — the money the customer hands over for that line —
+   * because that is the number being negotiated ("make it 10 for the two").
+   * The unit price is derived from it. `basePrice` is left alone: it is the
+   * evidence that this was an override, and the sale sends it as
+   * `original_unit_price` so the owner can see what was given away.
+   */
+  const setLinePrice = useCallback(
+    (key: string, unitPrice: number) => {
+      patchActive((c) => ({
+        lines: c.lines.map((l) =>
+          l.key === key ? { ...l, unitPrice: unitPrice.toFixed(2) } : l,
+        ),
+      }))
+    },
+    [patchActive],
+  )
+
+  /** Set a line's total directly; quantity is held, unit price follows. */
+  const setLineTotal = useCallback(
+    (key: string, lineTotal: number) => {
+      patchActive((c) => ({
+        lines: c.lines.map((l) => {
+          if (l.key !== key) return l
+          const qty = l.quantity || 1
+          return { ...l, unitPrice: (lineTotal / qty).toFixed(2) }
+        }),
+      }))
     },
     [patchActive],
   )
@@ -490,6 +566,9 @@ export function usePosCarts() {
     ensureSaleUuid,
     addMedication,
     setQuantity,
+    setLineUnit,
+    setLinePrice,
+    setLineTotal,
     removeLine,
     parkAndNew,
     closeCart,

@@ -25,6 +25,7 @@ import { AttributesEditor } from "@/components/attributes-editor"
 import { ENDPOINTS, upsert } from "@/lib/mutate"
 import { cn } from "@/lib/utils"
 import { useLockedFeature } from "@/components/locked-feature"
+import { AltBarcodesField } from "@/components/forms/alt-barcodes-field"
 import type { Product } from "@/api/generated/model"
 
 type FormValues = {
@@ -145,6 +146,9 @@ export function MedicationForm({
   const [scanOpen, setScanOpen] = useState(false)
   const [showMore, setShowMore] = useState(false)
   const { openPlanLocked } = useLockedFeature()
+  // Extra scannable codes. Held outside react-hook-form because it is a list,
+  // not a text field, and RHF's array handling buys nothing here.
+  const [altBarcodes, setAltBarcodes] = useState<string[]>([])
   const [attributes, setAttributes] = useState<Record<string, string>>({})
   const [attrSeed, setAttrSeed] = useState(0)
 
@@ -162,6 +166,12 @@ export function MedicationForm({
   useEffect(() => {
     if (!open) return
     if (product) {
+      // The API types alt_barcodes as `unknown` (it is a JSON column), so
+      // narrow it rather than trusting the shape.
+      const alts = (product as { alt_barcodes?: unknown }).alt_barcodes
+      setAltBarcodes(
+        Array.isArray(alts) ? alts.map(String).filter(Boolean) : [],
+      )
       reset({
         name: product.name ?? "",
         category: product.category ?? "",
@@ -213,6 +223,7 @@ export function MedicationForm({
       )
     } else {
       reset(initialBarcode ? { ...empty, barcode: initialBarcode } : empty)
+      setAltBarcodes([])
       setVideoUrl("")
       initialGalleryIds.current = []
       setPhotos([])
@@ -248,6 +259,7 @@ export function MedicationForm({
           name: v.name.trim(),
           category: v.category.trim(),
           barcode: v.barcode.trim(),
+          alt_barcodes: altBarcodes,
           price: v.price.trim() || "0",
           cost: v.cost.trim() || "0",
           brand: v.brand.trim(),
@@ -362,6 +374,13 @@ export function MedicationForm({
             <ScanBarcode className="size-4.5" />
           </button>
         </div>
+      </Field>
+
+      {/* Extra codes for the SAME product. Kept in the main body, not behind
+          the locked extras: scanning the wrong sticker and getting "not found"
+          is a till-stopping problem, not a nice-to-have. */}
+      <Field label="باركودات إضافية (اختياري)">
+        <AltBarcodesField value={altBarcodes} onChange={setAltBarcodes} />
       </Field>
 
       {/* Expiry — the date + how many days before it to flag the product. */}

@@ -6,10 +6,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
   ChartColumn,
+  ChevronDown,
+  Layers,
   LayoutGrid,
   Loader2,
   Minus,
-  Layers,
   Package,
   Plus,
   Printer,
@@ -292,6 +293,12 @@ function buildPayload(pos: Pos): CheckoutInput | null {
       variant: l.variantId ?? undefined,
       quantity: l.quantity,
       unit_price: l.unitPrice,
+      // Only when it actually differs — the backend nulls a no-op override
+      // anyway, but sending it is what makes the discount visible later.
+      original_unit_price:
+        l.basePrice != null && toNumber(l.basePrice) !== toNumber(l.unitPrice)
+          ? l.basePrice
+          : undefined,
     })),
     discounted_total:
       discounted != null && discounted !== total
@@ -545,17 +552,24 @@ function TotalRow({ pos }: { pos: Pos }) {
   return (
     <div className="flex items-baseline justify-between rounded-2xl bg-muted/60 px-4 py-2.5">
       <span className="text-sm text-muted-foreground">الإجمالي</span>
-      <span className="font-heading text-2xl font-bold">
-        {discounted != null && discounted !== total ? (
-          <>
-            <span className="me-2 text-sm text-muted-foreground line-through">
-              {formatMoney(total)}
-            </span>
-            {formatMoney(discounted)}
-          </>
-        ) : (
-          formatMoney(total)
+      <span className="flex items-baseline gap-2 font-heading text-2xl font-bold">
+        {discounted != null && discounted !== total && (
+          <span className="text-sm text-muted-foreground line-through">
+            {formatMoney(total)}
+          </span>
         )}
+        {/* Editable: the cashier rounds the bill in front of the customer.
+            Writing here sets the cart's discounted total, which the sale
+            already stores alongside the un-discounted one. */}
+        <MoneyEditor
+          value={discounted != null ? discounted : total}
+          edited={discounted != null && discounted !== total}
+          title="اضغط لتعديل الإجمالي"
+          className="h-9 w-28 text-xl"
+          onCommit={(v) =>
+            pos.patchActive({ discounted: v.toFixed(2), discountTouched: true })
+          }
+        />
       </span>
     </div>
   )
@@ -1014,6 +1028,125 @@ function ProductTile({
 }
 
 /* ── Table mode: scan-first, one big live table ────────────────────── */
+/**
+ * An inline money field that looks like text until you touch it.
+ *
+ * Used for the line total and the sale total. Both are numbers the cashier
+ * negotiates out loud ("make it 10 for the two"), so they have to be typeable
+ * where they are READ — not behind a discount field somewhere else.
+ *
+ * Same numeric-only rule as the quantity: letters can never land, and a
+ * half-typed "." reverts rather than committing nonsense.
+ */
+function MoneyEditor({
+  value,
+  onCommit,
+  edited = false,
+  className,
+  title,
+}: {
+  value: number
+  onCommit: (v: number) => void
+  /** Show it as changed-from-catalogue. */
+  edited?: boolean
+  className?: string
+  title?: string
+}) {
+  const [text, setText] = useState("")
+  const [editing, setEditing] = useState(false)
+  useEffect(() => {
+    if (!editing) setText(value.toFixed(2))
+  }, [value, editing])
+
+  function commit() {
+    setEditing(false)
+    const raw = text.trim()
+    const n = parseFloat(raw)
+    if (raw === "" || !isFinite(n) || n < 0) {
+      setText(value.toFixed(2)) // nonsense → put the number back
+      return
+    }
+    if (Math.abs(n - value) > 0.004) onCommit(Number(n.toFixed(2)))
+  }
+
+  return (
+    <input
+      value={text}
+      title={title}
+      onFocus={(e) => {
+        setEditing(true)
+        e.currentTarget.select()
+      }}
+      onChange={(e) => setText(sanitizeQtyInput(e.target.value))}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault()
+          e.currentTarget.blur()
+        }
+        if (e.key === "Escape") {
+          setText(value.toFixed(2))
+          setEditing(false)
+          e.currentTarget.blur()
+        }
+      }}
+      inputMode="decimal"
+      dir="ltr"
+      aria-label="المبلغ"
+      className={cn(
+        // Deliberately the SAME control as the quantity field next to it —
+        // same height, border, radius and focus ring. A full-width borderless
+        // input read as a broken text box, and made the row look like a form
+        // rather than a receipt.
+        "h-7 w-20 rounded-lg border bg-card text-center text-sm font-bold tabular-nums outline-none focus:ring-2 focus:ring-primary/30",
+        edited && "border-primary/50 text-primary",
+        className,
+      )}
+    />
+  )
+}
+
+/**
+ * The النوع (unit) cell: قطعة, or whichever pack this line is set to.
+ *
+ * Only interactive when the product actually HAS packs. Products without them
+ * — most of the catalogue — show a plain "قطعة" rather than a button that
+ * opens a dialog with one option in it.
+ */
+function UnitCell({
+  line,
+  catalog,
+  onPick,
+}: {
+  line: CartLine
+  catalog?: CatalogMed[]
+  onPick?: (line: CartLine) => void
+}) {
+  const med = catalog?.find((m) => m.id === line.medicationId)
+  const hasPacks = (med?.variants ?? []).length > 0
+  const label = line.variantLabel || "قطعة"
+
+  if (!hasPacks || !onPick) {
+    return <span className="text-xs text-muted-foreground">{label}</span>
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onPick(line)}
+      title="اضغط لتغيير النوع"
+      className={cn(
+        "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium transition hover:bg-primary/5 active:scale-95",
+        line.variantId
+          ? "border-primary/40 bg-primary/5 text-primary"
+          : "border-border text-muted-foreground",
+      )}
+    >
+      {label}
+      <ChevronDown className="size-3" />
+    </button>
+  )
+}
+
 function TableMode({
   pos,
   searchRaw,
@@ -1024,6 +1157,7 @@ function TableMode({
   onPick,
   onSubmitSale,
   qtySeed,
+  onPickUnit,
 }: {
   pos: Pos
   searchRaw: string
@@ -1034,6 +1168,7 @@ function TableMode({
   onPick: (m: CatalogMed) => void
   onSubmitSale?: () => void
   qtySeed?: QtySeed
+  onPickUnit?: (line: CartLine) => void
 }) {
   const checkout = useCheckout(pos)
   const active = pos.active
@@ -1131,6 +1266,7 @@ function TableMode({
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="text-start">الصنف</TableHead>
+              <TableHead className="text-center">النوع</TableHead>
               <TableHead className="text-end">السعر</TableHead>
               <TableHead className="text-center">الكمية</TableHead>
               <TableHead className="text-end">المجموع</TableHead>
@@ -1159,6 +1295,9 @@ function TableMode({
                     </p>
                   ) : null}
                 </TableCell>
+                <TableCell className="text-center">
+                  <UnitCell line={l} catalog={catalog} onPick={onPickUnit} />
+                </TableCell>
                 <TableCell className="text-end tabular-nums">
                   {formatMoney(l.unitPrice)}
                 </TableCell>
@@ -1182,8 +1321,23 @@ function TableMode({
                     />
                   </div>
                 </TableCell>
-                <TableCell className="text-end font-heading font-bold tabular-nums">
-                  {formatMoney(toNumber(l.unitPrice) * l.quantity)}
+                <TableCell className="text-end font-heading font-bold">
+                  <div className="flex justify-end">
+                  <MoneyEditor
+                    value={toNumber(l.unitPrice) * l.quantity}
+                    edited={
+                      l.basePrice != null &&
+                      toNumber(l.basePrice) !== toNumber(l.unitPrice)
+                    }
+                    title={
+                      l.basePrice != null &&
+                      toNumber(l.basePrice) !== toNumber(l.unitPrice)
+                        ? `السعر الأصلي ${formatMoney(l.basePrice)}`
+                        : "اضغط لتعديل المبلغ"
+                    }
+                    onCommit={(v) => pos.setLineTotal(l.key, v)}
+                  />
+                  </div>
                 </TableCell>
                 <TableCell>
                   <button
@@ -1373,18 +1527,55 @@ export default function PosPage() {
   const [variantPicker, setVariantPicker] = useState<{
     med: Product
     variants: CatalogVariant[]
+    /** Set when we're changing an existing cart line's unit rather than
+     *  adding something new. */
+    lineKey?: string
   } | null>(null)
 
-  /** Add a med to the cart, or open the variant picker when it has variants. */
+  /**
+   * Open the unit chooser for a cart line: قطعة, or any pack the product has.
+   *
+   * The import creates one variant per pack BARCODE, so a product with two
+   * barcodes for the same 24-pack ends up with two identical-looking rows.
+   * Collapse them by label+price — the cashier is choosing a unit, not a
+   * barcode, and two identical options is just a decision they can get wrong.
+   */
+  function openUnitPicker(line: CartLine) {
+    const med = catalog?.find((m) => m.id === line.medicationId)
+    if (!med) return
+    const seen = new Set<string>()
+    const variants = medVariants(med as unknown as Product).filter((v) => {
+      const k = `${v.label}|${v.price}`
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+    if (variants.length === 0) return
+    setVariantPicker({
+      med: catalogToMed(med),
+      variants,
+      lineKey: line.key,
+    })
+  }
+
+  /**
+   * Add a med to the cart — ALWAYS as a single piece.
+   *
+   * It used to open a "اختر النوع" dialog whenever the product had variants.
+   * For this store every variant is a PACK (عبوة ×24 and friends, created by
+   * the Shamel import from its secondary selling units), not a colour or a
+   * size — so the base product is always a valid answer, and usually the right
+   * one. Forcing the cashier to pick a unit for a ₪1 chocolate bar, on a
+   * dialog listing only the ₪24 box, stops the sale dead.
+   *
+   * Scanning a PACK's own barcode still adds that pack directly (handled in
+   * handleScan) — that barcode means the box. And any line can be switched
+   * between piece and pack afterwards, from the النوع column.
+   */
   function addMedOrPick(
     med: Product,
-    variants: CatalogVariant[] | undefined,
+    _variants: CatalogVariant[] | undefined,
   ): ScanFeedback {
-    const vs = variants ?? []
-    if (vs.length > 0) {
-      setVariantPicker({ med, variants: vs })
-      return { ok: true, message: "اختر النوع" }
-    }
     addWithFeedback(med)
     return { ok: true, message: `أُضيف: ${med.name}` }
   }
@@ -1557,6 +1748,7 @@ export default function PosPage() {
 
       {mode === "table" ? (
         <TableMode
+          onPickUnit={openUnitPicker}
           qtySeed={qtySeed}
           pos={pos}
           searchRaw={searchRaw}
@@ -1761,16 +1953,46 @@ export default function PosPage() {
         <DialogContent className="max-w-md">
           <DialogTitle>{variantPicker?.med.name} — اختر النوع</DialogTitle>
           <div className="mt-2 grid gap-2">
+            {/* The loose piece, always first and always available — this is
+                the default the cart is already using. */}
+            <button
+              type="button"
+              onClick={() => {
+                if (variantPicker?.lineKey) {
+                  pos.setLineUnit(
+                    variantPicker.lineKey,
+                    null,
+                    variantPicker.med.price ?? "0",
+                  )
+                } else if (variantPicker) {
+                  addWithFeedback(variantPicker.med)
+                }
+                setVariantPicker(null)
+              }}
+              className="flex items-center gap-3 rounded-2xl border px-4 py-3 text-start transition hover:bg-primary/5 active:scale-[0.99]"
+            >
+              <span className="min-w-0 flex-1 truncate font-medium">قطعة</span>
+              <span className="font-heading font-bold tabular-nums text-primary">
+                {formatMoney(variantPicker?.med.price ?? 0)}
+              </span>
+            </button>
             {variantPicker?.variants.map((v) => (
               <button
                 key={v.id}
                 type="button"
                 onClick={() => {
-                  if (variantPicker)
+                  if (variantPicker?.lineKey) {
+                    pos.setLineUnit(
+                      variantPicker.lineKey,
+                      variantToCart(v, variantPicker.med.price ?? "0"),
+                      variantPicker.med.price ?? "0",
+                    )
+                  } else if (variantPicker) {
                     addWithFeedback(
                       variantPicker.med,
                       variantToCart(v, variantPicker.med.price ?? "0"),
                     )
+                  }
                   setVariantPicker(null)
                 }}
                 className="flex items-center gap-3 rounded-2xl border px-4 py-3 text-start transition hover:bg-primary/5 active:scale-[0.99]"
