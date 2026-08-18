@@ -4,15 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import gsap from "gsap"
 import { useForm } from "react-hook-form"
 import { useQueryClient } from "@tanstack/react-query"
-import {
-  ChevronDown,
-  ChevronLeft,
-  Layers,
-  Loader2,
-  Package,
-  Save,
-  ScanBarcode,
-} from "lucide-react"
+import { ChevronDown, ChevronLeft, Layers, Loader2, Lock, Package, Save, ScanBarcode } from "lucide-react"
 import { toast } from "sonner"
 
 import { FormModal } from "@/components/form-modal"
@@ -32,6 +24,7 @@ import { VideoPlayer } from "@/components/video-player"
 import { AttributesEditor } from "@/components/attributes-editor"
 import { ENDPOINTS, upsert } from "@/lib/mutate"
 import { cn } from "@/lib/utils"
+import { useLockedFeature } from "@/components/locked-feature"
 import type { Product } from "@/api/generated/model"
 
 type FormValues = {
@@ -116,6 +109,13 @@ function Field({
   )
 }
 
+/**
+ * The extras panel (cost, brand, manufacturer, expiry alerts, variants) is not
+ * part of what this store bought. Kept in the tree rather than deleted so
+ * turning it back on is this one line, not a re-implementation.
+ */
+const EXTRAS_ENABLED = false
+
 export function MedicationForm({
   open,
   onOpenChange,
@@ -144,6 +144,7 @@ export function MedicationForm({
   const initialGalleryIds = useRef<number[]>([])
   const [scanOpen, setScanOpen] = useState(false)
   const [showMore, setShowMore] = useState(false)
+  const { openPlanLocked } = useLockedFeature()
   const [attributes, setAttributes] = useState<Record<string, string>>({})
   const [attrSeed, setAttrSeed] = useState(0)
 
@@ -382,19 +383,28 @@ export function MedicationForm({
         </Field>
       </div>
 
-      {/* ── Extras (collapsed by default) ──────────────────────────── */}
+      {/* ── Extras — locked on this store's plan ───────────────────────
+          The fields underneath (cost, brand, manufacturer, expiry alerts,
+          variants) are not part of what this store bought. Showing the row
+          greyed with a padlock is deliberate: hiding it entirely makes the
+          product look thinner than it is, and the owner has no idea the
+          capability exists. Tapping it explains, once, without a sales pitch. */}
       <button
         type="button"
-        onClick={() => setShowMore((s) => !s)}
-        className="flex w-full items-center justify-between rounded-xl bg-muted/60 px-3.5 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-muted"
+        onClick={() => openPlanLocked("التفاصيل الإضافية")}
+        aria-disabled="true"
+        className="flex w-full cursor-not-allowed items-center justify-between rounded-xl bg-muted/40 px-3.5 py-2.5 text-sm font-medium text-muted-foreground/60 transition hover:bg-muted/60"
       >
-        تفاصيل إضافية (اختياري)
-        <ChevronDown
-          className={cn("size-4 transition-transform", showMore && "rotate-180")}
-        />
+        <span className="flex items-center gap-2">
+          <Lock className="size-3.5" />
+          تفاصيل إضافية (اختياري)
+        </span>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground/70">
+          غير مشمولة
+        </span>
       </button>
 
-      {showMore && (
+      {EXTRAS_ENABLED && showMore && (
         <div className="space-y-3.5">
           <div className="grid grid-cols-2 gap-3">
             <Field label="التكلفة (₪)" highlight={highlight === "cost"}>

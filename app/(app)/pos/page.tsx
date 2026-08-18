@@ -155,6 +155,9 @@ function receiptFromQueued(
  * still collapsed server-side; this just stops the pointless second request
  * and the confusing second toast.
  */
+/** A digit typed on the page, to seed the last line's quantity field. */
+type QtySeed = { digit: string; tick: number } | null
+
 const inFlightCarts = new Set<string>()
 
 function useCheckout(pos: Pos, onDone?: () => void) {
@@ -633,12 +636,16 @@ function QtyEditor({
   value,
   onChange,
   focusSignal,
+  seedDigit,
   onScanBurst,
   onSubmitSale,
 }: {
   value: number
   onChange: (q: number) => void
   focusSignal?: number
+  /** A digit the cashier typed on the page, which should start this field's
+   *  value rather than be swallowed by the focus change. */
+  seedDigit?: string
   onScanBurst?: (code: string) => void
   onSubmitSale?: () => void
 }) {
@@ -660,10 +667,28 @@ function QtyEditor({
     )
       return
     const el = inputRef.current
-    if (el) {
-      el.focus()
+    if (!el) return
+    el.focus()
+    if (seedDigit) {
+      // Seeded: the digit the cashier already pressed becomes the value, and
+      // the caret goes to the END so the next keystroke appends ("3" then "5"
+      // = 35, not 5). Prime the burst tracker with it too, so a barcode that
+      // arrived this way is still recognised complete at Enter.
+      setText(seedDigit)
+      burst.current = { chars: seedDigit, last: Date.now(), base: formatQty(value) }
+      requestAnimationFrame(() => {
+        const len = el.value.length
+        try {
+          el.setSelectionRange(len, len)
+        } catch {
+          /* number inputs in some browsers reject setSelectionRange */
+        }
+      })
+    } else {
       el.select()
     }
+    // seedDigit is read at focus time only; focusSignal is the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusSignal])
   function commit() {
     const n = parseFloat(text.replace(",", "."))
@@ -758,12 +783,14 @@ function CartLineRow({
   line,
   pos,
   focusSignal,
+  seedDigit,
   onScanBurst,
   onSubmitSale,
 }: {
   line: CartLine
   pos: Pos
   focusSignal?: number
+  seedDigit?: string
   onScanBurst?: (code: string) => void
   onSubmitSale?: () => void
 }) {
@@ -784,6 +811,7 @@ function CartLineRow({
         value={line.quantity}
         onChange={(q) => pos.setQuantity(line.key, q)}
         focusSignal={focusSignal}
+        seedDigit={seedDigit}
         onScanBurst={onScanBurst}
         onSubmitSale={onSubmitSale}
       />
@@ -811,6 +839,7 @@ function CartPanel({
   defaultScanning = false,
   onScanBurst,
   onSubmitSale,
+  qtySeed,
 }: {
   pos: Pos
   onDone?: () => void
@@ -823,6 +852,7 @@ function CartPanel({
   onScanBurst?: (code: string) => void
   /** Plain Enter in the quantity field → complete the sale. */
   onSubmitSale?: () => void
+  qtySeed?: QtySeed
 }) {
   const [scanning, setScanning] = useState(defaultScanning)
   const checkout = useCheckout(pos, onDone)
@@ -880,7 +910,12 @@ function CartPanel({
             key={l.key}
             line={l}
             pos={pos}
-            focusSignal={l.key === pos.lastAddedKey ? pos.addTick : undefined}
+            focusSignal={
+              l.key === pos.lastAddedKey
+                ? (qtySeed?.tick ?? pos.addTick)
+                : undefined
+            }
+            seedDigit={l.key === pos.lastAddedKey ? qtySeed?.digit : undefined}
             onScanBurst={onScanBurst}
             onSubmitSale={onSubmitSale}
           />
@@ -964,6 +999,7 @@ function TableMode({
   catalog,
   onPick,
   onSubmitSale,
+  qtySeed,
 }: {
   pos: Pos
   searchRaw: string
@@ -973,6 +1009,7 @@ function TableMode({
   catalog?: CatalogMed[]
   onPick: (m: CatalogMed) => void
   onSubmitSale?: () => void
+  qtySeed?: QtySeed
 }) {
   const checkout = useCheckout(pos)
   const active = pos.active
@@ -1106,6 +1143,16 @@ function TableMode({
                     <QtyEditor
                       value={l.quantity}
                       onChange={(q) => pos.setQuantity(l.key, q)}
+                      // Table mode is this store's default view, and it was
+                      // the one place the quantity field never auto-focused.
+                      focusSignal={
+                        l.key === pos.lastAddedKey
+                          ? (qtySeed?.tick ?? pos.addTick)
+                          : undefined
+                      }
+                      seedDigit={
+                        l.key === pos.lastAddedKey ? qtySeed?.digit : undefined
+                      }
                       onScanBurst={onWedgeEnter}
                       onSubmitSale={onSubmitSale}
                     />
@@ -1163,8 +1210,28 @@ export default function PosPage() {
   // the search box focused, and add the matched product straight to the cart
   // (falls back to filling the search box only when the code is ambiguous). A
   // bare Enter (nothing focused, no burst) completes the sale.
+  const [qtySeed, setQtySeed] = useState<QtySeed>(null)
+  // Clear the seed once the cart moves on, so re-adding the same line doesn't
+  // resurrect a stale digit.
+  useEffect(() => {
+    setQtySeed(null)
+  }, [pos.lastAddedKey, pos.addTick])
   useGlobalScanner((code) => void handleWedgeEnter(code), {
     onEnter: submitActiveSale,
+    // + / − nudge the line the cashier just added — the common case is "make
+    // that two" right after a scan, and reaching for the mouse to hit the
+    // on-screen stepper costs more than the sale is worth.
+    onAdjustQty: (delta) => {
+      const line = pos.active?.lines.find((l) => l.key === pos.lastAddedKey)
+      if (!line) return
+      pos.setQuantity(line.key, Math.max(0, line.quantity + delta))
+    },
+    onNewCart: pos.parkAndNew,
+    // A digit typed with nothing focused = a manual quantity for that line.
+    onDigit: (digit) => {
+      if (!pos.active?.lines.some((l) => l.key === pos.lastAddedKey)) return
+      setQtySeed({ digit, tick: Date.now() })
+    },
   })
   const [cartOpen, setCartOpen] = useState(false)
   const [sheetScan, setSheetScan] = useState(false)
@@ -1466,6 +1533,7 @@ export default function PosPage() {
 
       {mode === "table" ? (
         <TableMode
+          qtySeed={qtySeed}
           pos={pos}
           searchRaw={searchRaw}
           setSearchRaw={setSearchRaw}
@@ -1566,6 +1634,7 @@ export default function PosPage() {
                 )}
               >
                 <CartPanel
+                  qtySeed={qtySeed}
                   pos={pos}
                   onScanBurst={(code) => void handleWedgeEnter(code)}
                   onSubmitSale={submitActiveSale}
@@ -1635,6 +1704,7 @@ export default function PosPage() {
             >
               <DialogTitle className="sr-only">السلة</DialogTitle>
               <CartPanel
+                qtySeed={qtySeed}
                 pos={pos}
                 totalOnTop
                 onScanCode={handleScan}

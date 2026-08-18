@@ -161,13 +161,11 @@ function LoginForm() {
         />
         <div className="animate-in fade-in slide-in-from-bottom-4 w-full max-w-sm duration-500">
           <div className="login-anim mb-8 flex flex-col items-center text-center lg:items-start lg:text-start">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/illustrations/store-shop.png"
-              alt=""
-              aria-hidden="true"
-              className="float-slow mb-2 h-40 w-40 drop-shadow-xl lg:h-44 lg:w-44 lg:self-center"
-            />
+            {/* The store's own logo, same mark as the launcher/PWA icon.
+                This used to point at /illustrations/store-shop.png, which does
+                not exist in this repo (only pharmacy-shop.png does) — so the
+                login page greeted every cashier with a broken-image icon. */}
+            <BrandMark className="float-slow mb-2 size-32 drop-shadow-xl lg:size-36 lg:self-center" />
             <h1 className="font-heading text-2xl font-bold tracking-tight md:text-3xl">
               أهلاً بعودتك 👋
             </h1>

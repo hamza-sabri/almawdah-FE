@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
-import { Download, Lock, LogOut, PanelLeft, Settings } from "lucide-react"
+import { Download, Loader2, Lock, LogOut, PanelLeft, Settings } from "lucide-react"
 import { toast } from "sonner"
 
 import { logout } from "@/lib/auth"
@@ -13,7 +13,7 @@ import { useIsOwner, useNavItemsWithLock } from "@/lib/modules"
 import { useLockedFeature } from "@/components/locked-feature"
 import { BrandLockup, BrandMark } from "@/components/brand"
 import { ConfirmDelete } from "@/components/confirm-delete"
-import { ExportDialog } from "@/components/export-dialog"
+import { downloadDataExport } from "@/lib/export-data"
 import {
   Tooltip,
   TooltipContent,
@@ -30,7 +30,7 @@ export function AppSidebar() {
   const qc = useQueryClient()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-  const [exportOpen, setExportOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
   // Collapsed (icons only) by default; expand is temporary — any navigation
   // re-collapses it so the rail stays out of the way on small screens.
   const [collapsed, setCollapsed] = useState(true)
@@ -165,12 +165,33 @@ export function AppSidebar() {
           {isOwner && (
             <button
               type="button"
-              onClick={() => setExportOpen(true)}
+              disabled={exporting}
+              onClick={async () => {
+                // No dialog: one file, two sheets, straight to the downloads
+                // folder. The chooser only ever asked a question with no
+                // wrong answer.
+                setExporting(true)
+                try {
+                  await downloadDataExport()
+                } catch (e) {
+                  toast.error(
+                    e instanceof Error ? e.message : "تعذر التصدير.",
+                  )
+                } finally {
+                  setExporting(false)
+                }
+              }}
               title={collapsed ? "تصدير البيانات" : undefined}
-              className={rowCls()}
+              className={cn(rowCls(), exporting && "opacity-60")}
             >
-              <Download className="size-5 shrink-0" />
-              {!collapsed && <span>تصدير البيانات</span>}
+              {exporting ? (
+                <Loader2 className="size-5 shrink-0 animate-spin" />
+              ) : (
+                <Download className="size-5 shrink-0" />
+              )}
+              {!collapsed && (
+                <span>{exporting ? "جارٍ التصدير…" : "تصدير البيانات"}</span>
+              )}
             </button>
           )}
           <Link href="/settings" title={collapsed ? "الإعدادات" : undefined} className={rowCls()}>
@@ -197,7 +218,6 @@ export function AppSidebar() {
             confirmLabel="تسجيل الخروج"
             confirmIcon={<LogOut className="size-4" />}
           />
-          <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
           {!collapsed && (
             <p className="pt-2 text-center text-[10px] tracking-wide text-white/35">
               نظام إدارة المتجر

@@ -28,8 +28,18 @@ function labelFor(module: ModuleRef): string {
   return MODULE_LABELS[key] ?? "هذه الميزة"
 }
 
-type Ctx = { openLocked: (module?: ModuleRef) => void }
-const LockedFeatureContext = createContext<Ctx>({ openLocked: () => {} })
+type Ctx = {
+  openLocked: (module?: ModuleRef) => void
+  /** A feature that exists in the product but is not on THIS store's plan.
+   *  Distinct from openLocked, which is "your colleague can enable this for
+   *  you". Worded so the owner understands it is available, without turning
+   *  the app into a sales pitch mid-task. */
+  openPlanLocked: (label?: string) => void
+}
+const LockedFeatureContext = createContext<Ctx>({
+  openLocked: () => {},
+  openPlanLocked: () => {},
+})
 
 export function useLockedFeature() {
   return useContext(LockedFeatureContext)
@@ -40,13 +50,19 @@ export function useLockedFeature() {
 export function LockedFeatureProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const [module, setModule] = useState<ModuleRef>(undefined)
+  const [planLabel, setPlanLabel] = useState<string | null>(null)
   const openLocked = useCallback((m?: ModuleRef) => {
     setModule(m)
+    setPlanLabel(null)
+    setOpen(true)
+  }, [])
+  const openPlanLocked = useCallback((label?: string) => {
+    setPlanLabel(label ?? "هذه الميزة")
     setOpen(true)
   }, [])
 
   return (
-    <LockedFeatureContext.Provider value={{ openLocked }}>
+    <LockedFeatureContext.Provider value={{ openLocked, openPlanLocked }}>
       {children}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-sm">
@@ -54,10 +70,18 @@ export function LockedFeatureProvider({ children }: { children: ReactNode }) {
             <div className="mx-auto mb-1 grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary">
               <Lock className="size-6" />
             </div>
-            <DialogTitle>ميزة غير مفعّلة</DialogTitle>
+            <DialogTitle>
+              {planLabel ? "غير مشمولة في باقتك" : "ميزة غير مفعّلة"}
+            </DialogTitle>
             <DialogDescription className="leading-relaxed">
-              «{labelFor(module)}» غير مفعّلة لحسابك. تواصل مع صاحب المتجر
-              لتفعيلها لك.
+              {planLabel ? (
+                <>«{planLabel}» غير مشمولة في باقتك الحالية.</>
+              ) : (
+                <>
+                  «{labelFor(module)}» غير مفعّلة لحسابك. تواصل مع صاحب المتجر
+                  لتفعيلها لك.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
