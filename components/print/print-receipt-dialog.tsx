@@ -187,7 +187,7 @@ export function PrintReceiptDialog({
             <SearchInput
               value={item}
               onChange={setItem}
-              placeholder="ابحث بالصنف أو الباركود…"
+              placeholder="امسح باركود الفاتورة أو ابحث بالصنف…"
               scan
             />
           </div>
