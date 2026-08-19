@@ -31,7 +31,8 @@ import { useDebounced } from "@/hooks/use-debounced"
 import { useMe, displayName } from "@/hooks/use-me"
 import { useStaggerCards } from "@/hooks/use-stagger-cards"
 import { formatDate, formatMoney, formatNumber, toNumber } from "@/lib/format"
-import { printReceipt, type ReceiptData } from "@/lib/print/receipt"
+import { type ReceiptData } from "@/lib/print/receipt"
+import { deliverAndToast } from "@/lib/print/deliver"
 import { loadPrintSettings } from "@/lib/print/settings"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -138,7 +139,14 @@ function SaleDetail({
       cashierName: s.created_by_name || cashierName,
       createdAt: s.created_at,
     }
-    printReceipt(data, pharmacyName, loadPrintSettings(), pharmacyLogo)
+    // Agent → browser → file, same as a checkout.
+    void deliverAndToast(
+      data,
+      pharmacyName,
+      loadPrintSettings(),
+      pharmacyLogo,
+      "إعادة طباعة الفاتورة",
+    )
   }
 
   return (

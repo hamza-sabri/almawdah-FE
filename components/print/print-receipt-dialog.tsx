@@ -15,7 +15,8 @@ import { salesList, type Sale } from "@/api/sales"
 import { useMe, displayName } from "@/hooks/use-me"
 import { useDebounced } from "@/hooks/use-debounced"
 import { formatDate, formatMoney, formatNumber, toNumber } from "@/lib/format"
-import { printReceipt, type ReceiptData } from "@/lib/print/receipt"
+import { deliverAndToast } from "@/lib/print/deliver"
+import { type ReceiptData } from "@/lib/print/receipt"
 import { loadPrintSettings } from "@/lib/print/settings"
 import { cn } from "@/lib/utils"
 
@@ -143,7 +144,16 @@ export function PrintReceiptDialog({
   function doPrint() {
     const s = sales.find((x) => x.id === selected)
     if (!s) return
-    printReceipt(saleToReceipt(s, cashierName), pharmacyName, loadPrintSettings(), pharmacyLogo)
+    // Same path as a checkout: the local agent first, then the browser, then
+    // a file. Going straight to printReceipt() here reopened the OS dialog —
+    // the exact thing the agent exists to avoid.
+    void deliverAndToast(
+      saleToReceipt(s, cashierName),
+      pharmacyName,
+      loadPrintSettings(),
+      pharmacyLogo,
+      "إعادة طباعة الفاتورة",
+    )
   }
 
   return (

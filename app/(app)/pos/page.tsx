@@ -42,7 +42,7 @@ import { submitSale } from "@/lib/offline/submit-sale"
 import { clearOfflineCaches } from "@/lib/offline/catalog-cache"
 import type { QueuedSale } from "@/lib/offline/queue"
 import { type ReceiptData } from "@/lib/print/receipt"
-import { deliverReceipt } from "@/lib/print/deliver"
+import { deliverReceipt, describeDelivery } from "@/lib/print/deliver"
 import { loadPrintSettings, type PrintSettings } from "@/lib/print/settings"
 import { PrintSettingsDialog } from "@/components/print/print-settings-dialog"
 import { PrintReceiptDialog } from "@/components/print/print-receipt-dialog"
@@ -148,39 +148,20 @@ function printAndAnnounce(
   logoUrl: string,
 ) {
   void deliverReceipt(data, pharmacyName, settings, logoUrl).then((r) => {
-    const open = r.fileUrl
+    const d = describeDelivery(r)
+    const action = r.fileUrl
       ? { label: "عرض", onClick: () => window.open(r.fileUrl!, "_blank") }
       : undefined
-    const show = kind === "warning" ? toast.warning : toast.success
-
-    switch (r.outcome) {
-      // Paper came out. Short — the receipt in the customer's hand is the
-      // real feedback, the toast is just confirming the sale.
-      case "agent":
-      case "printed":
-        show(headline, { id, description: "طُبعت الفاتورة", duration: 3500 })
-        return
-      // Expected: this counter is set to download.
-      case "downloaded":
-        show(headline, {
-          id,
-          description: "نُزّلت الفاتورة كملف",
-          action: open,
-          duration: 5000,
-        })
-        return
-      // Not expected. Longer, because there is something to read and a file
-      // to open — but not so long it sits over the next customer.
-      default:
-        toast.warning(headline, {
-          id,
-          description: r.detail
-            ? `لا توجد طابعة — نُزّلت الفاتورة (${r.detail})`
-            : "لا توجد طابعة — نُزّلت الفاتورة",
-          action: open,
-          duration: 7000,
-        })
-    }
+    // A no-printer result is a warning even on a successful sale; everything
+    // else keeps the sale's own tone.
+    const show =
+      d.tone === "warn" ? toast.warning : kind === "warning" ? toast.warning : toast.success
+    show(headline, {
+      id,
+      description: d.description,
+      duration: d.duration,
+      action,
+    })
   })
 }
 

@@ -13,6 +13,8 @@
  * and every fallback still ends with the customer holding something.
  */
 
+import { toast } from "sonner"
+
 import { agentPrint, agentStatus } from "@/lib/print/agent"
 import { canvasToEscPos, toBase64, DOTS } from "@/lib/print/escpos"
 import { renderReceiptCanvas } from "@/lib/print/receipt-canvas"
@@ -99,4 +101,58 @@ export async function deliverReceipt(
       resolve({ outcome, fileUrl }),
     )
   })
+}
+
+/**
+ * How a delivery result reads to a cashier.
+ *
+ * Shared so the wording cannot drift between the checkout toast (which folds
+ * this into the sale's own toast) and the standalone reprints. Three call
+ * sites used to bypass all of this and open the browser's print dialog
+ * directly — the exact thing the print agent exists to avoid.
+ */
+export function describeDelivery(r: DeliverResult): {
+  tone: "ok" | "warn"
+  description: string
+  duration: number
+} {
+  switch (r.outcome) {
+    case "agent":
+    case "printed":
+      return { tone: "ok", description: "طُبعت الفاتورة", duration: 3500 }
+    case "downloaded":
+      return { tone: "ok", description: "نُزّلت الفاتورة كملف", duration: 5000 }
+    default:
+      return {
+        tone: "warn",
+        description: r.detail
+          ? `لا توجد طابعة — نُزّلت الفاتورة (${r.detail})`
+          : "لا توجد طابعة — نُزّلت الفاتورة",
+        duration: 7000,
+      }
+  }
+}
+
+/**
+ * Deliver a receipt and say what happened, in one call.
+ *
+ * For every print that is NOT part of a checkout — reprinting from history,
+ * the settings preview. A checkout has its own toast to fold the result into
+ * (see the POS), so it uses `deliverReceipt` + `describeDelivery` directly.
+ */
+export async function deliverAndToast(
+  data: ReceiptData,
+  storeName: string,
+  settings: PrintSettings,
+  logoUrl = "",
+  headline = "الفاتورة",
+): Promise<DeliverResult> {
+  const r = await deliverReceipt(data, storeName, settings, logoUrl)
+  const d = describeDelivery(r)
+  const action = r.fileUrl
+    ? { label: "عرض", onClick: () => window.open(r.fileUrl!, "_blank") }
+    : undefined
+  const show = d.tone === "ok" ? toast.success : toast.warning
+  show(headline, { description: d.description, duration: d.duration, action })
+  return r
 }

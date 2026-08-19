@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest"
 import { readFileSync } from "node:fs"
 
+import { describeDelivery } from "@/lib/print/deliver"
+
 /**
  * One toast per checkout.
  *
@@ -42,20 +44,25 @@ describe("the checkout toast", () => {
   })
 
   it("says what happened to the receipt in the SAME box, as a description", () => {
-    expect(FN).toContain("طُبعت الفاتورة")
-    expect(FN).toContain("نُزّلت الفاتورة")
+    // The wording lives in describeDelivery so the checkout toast and the
+    // standalone reprints cannot drift apart; the POS must use it rather than
+    // writing its own copy.
+    expect(FN).toContain("describeDelivery(r)")
+    expect(FN).toContain("description: d.description")
+    expect(describeDelivery({ outcome: "printed" }).description).toContain("طُبعت")
+    expect(describeDelivery({ outcome: "downloaded" }).description).toContain("نُزّلت")
   })
 
   it("keeps the sale's own wording as the headline in every outcome", () => {
-    // The amount is the thing the cashier is checking; printing is a footnote
-    // to it, never a replacement for it.
-    const shows = [...FN.matchAll(/(?:show|toast\.warning)\(\s*(\w+)/g)].map((m) => m[1])
-    expect(shows.length).toBeGreaterThanOrEqual(3)
+    // The amount is what the cashier is checking; printing is a footnote to
+    // it, never a replacement for it.
+    const shows = [...FN.matchAll(/show\(\s*(\w+)/g)].map((m) => m[1])
+    expect(shows.length).toBeGreaterThanOrEqual(1)
     for (const arg of shows) expect(arg).toBe("headline")
   })
 
-  it("only the no-printer case is a warning; a normal print is not", () => {
-    expect(FN).toContain('case "agent":')
-    expect(FN).toContain("toast.warning(headline")
+  it("a missing printer warns even on a sale that succeeded", () => {
+    expect(describeDelivery({ outcome: "unavailable" }).tone).toBe("warn")
+    expect(FN).toContain('d.tone === "warn" ? toast.warning')
   })
 })

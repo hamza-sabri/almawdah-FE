@@ -12,7 +12,7 @@ import {
   type PaperWidth,
   type PrintSettings,
 } from "@/lib/print/settings"
-import { printReceipt } from "@/lib/print/receipt"
+import { deliverAndToast } from "@/lib/print/deliver"
 import { PrintAgentCard } from "@/components/print/print-agent-card"
 
 import { Button } from "@/components/ui/button"
@@ -106,7 +106,7 @@ export function PrintSettingsDialog({
   function testPrint() {
     // Persist first so the test reflects what the cashier just changed.
     savePrintSettings(s)
-    printReceipt(
+    void deliverAndToast(
       {
         saleId: "TEST",
         items: [
@@ -122,6 +122,7 @@ export function PrintSettingsDialog({
       pharmacyName,
       s,
       pharmacyLogo,
+      "فاتورة تجريبية",
     )
   }
 
