@@ -1,10 +1,15 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
-import { ChevronDown, History, Loader2, Printer } from "lucide-react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { ChevronDown, History, Loader2, Printer, Undo2 } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 
-import { salesRevisions, type SaleRevision } from "@/api/sales"
+import {
+  salesRestoreRevision,
+  salesRevisions,
+  type SaleRevision,
+} from "@/api/sales"
 import { useMe, displayName } from "@/hooks/use-me"
 import { formatDate, formatMoney, toNumber } from "@/lib/format"
 import { deliverAndToast } from "@/lib/print/deliver"
@@ -35,6 +40,8 @@ export function SaleRevisions({
   receiptCode?: string
 }) {
   const [open, setOpen] = useState(false)
+  const [confirming, setConfirming] = useState<number | null>(null)
+  const qc = useQueryClient()
   const { user } = useMe()
   const me = user as { pharmacy_name?: string; pharmacy_logo?: string } | undefined
   const storeName = me?.pharmacy_name?.trim() || "المتجر"
@@ -95,6 +102,32 @@ export function SaleRevisions({
     staleTime: 60_000,
   })
 
+  /**
+   * Put the sale back to this version.
+   *
+   * Deliberately NOT phrased or built as an undo: the server runs it through
+   * the same path an edit takes, so the state being replaced is filed away
+   * first. Restoring and then changing your mind loses nothing — the chain
+   * only grows.
+   */
+  const restore = useMutation({
+    mutationFn: (version: number) => salesRestoreRevision(saleId, version),
+    onSuccess: (_r, version) => {
+      toast.success(`تمت العودة إلى النسخة ${version}`)
+      setConfirming(null)
+      // The sale, its history, and everything the edit moved.
+      qc.invalidateQueries({ queryKey: ["sale-revisions", saleId] })
+      qc.invalidateQueries({ queryKey: ["sales"] })
+      qc.invalidateQueries({ queryKey: ["sales-stats"] })
+      qc.invalidateQueries({ queryKey: ["products"] })
+      qc.invalidateQueries({ queryKey: ["customers"] })
+      qc.invalidateQueries({ queryKey: ["customers-quick"] })
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] })
+    },
+    onError: (e) =>
+      toast.error((e as Error)?.message || "تعذّر استرجاع النسخة"),
+  })
+
   if (!count) return null
 
   return (
@@ -146,8 +179,50 @@ export function SaleRevisions({
                   >
                     <Printer className="size-3.5" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(rev.version)}
+                    disabled={restore.isPending}
+                    title={`إرجاع الفاتورة إلى النسخة ${rev.version}`}
+                    aria-label={`إرجاع الفاتورة إلى النسخة ${rev.version}`}
+                    className="grid size-7 shrink-0 place-items-center rounded-lg border bg-card text-muted-foreground transition hover:bg-primary/10 hover:text-primary disabled:opacity-40"
+                  >
+                    <Undo2 className="size-3.5" />
+                  </button>
                 </div>
               </div>
+
+              {/* Asked for, not because it is dangerous — it is recorded like
+                  any other edit — but because it moves stock and a customer's
+                  balance, and the button is one pixel from «print». */}
+              {confirming === rev.version && (
+                <div className="mb-2 space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-2">
+                  <p className="font-semibold">
+                    إرجاع الفاتورة إلى النسخة {rev.version}؟ سيتم تعديل المخزون
+                    وحفظ النسخة الحالية في السجل.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => restore.mutate(rev.version)}
+                      disabled={restore.isPending}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1 font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
+                    >
+                      {restore.isPending && (
+                        <Loader2 className="size-3 animate-spin" />
+                      )}
+                      تأكيد
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirming(null)}
+                      className="rounded-lg px-3 py-1 text-muted-foreground hover:text-foreground"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="space-y-1">
                 {rev.snapshot.items.map((it, i) => (
                   <div key={i} className="flex items-center gap-2">

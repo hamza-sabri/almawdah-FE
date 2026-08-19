@@ -1713,12 +1713,6 @@ function PosPageInner() {
     return () => clearTimeout(t)
   }, [bump])
 
-  const { data: stats } = useQuery({
-    queryKey: ["sales-stats"],
-    queryFn: async () => (await salesStats()).data,
-    staleTime: 60_000,
-  })
-
   const params = useMemo(
     () => ({ search: search || undefined, ordering: "name", page_size: 30 }),
     [search],
@@ -1934,20 +1928,12 @@ function PosPageInner() {
           <h1 className="font-heading text-2xl font-bold tracking-tight md:text-3xl">
             نقطة البيع
           </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            مبيعات اليوم:{" "}
-            <span className="font-bold text-foreground">
-              {stats?.periods?.today
-                ? formatMoney(stats.periods.today.amount)
-                : "…"}
-            </span>{" "}
-            <span className="pill pill-primary ms-1 px-2 py-0.5 text-[10px]">
-              {stats?.periods?.today
-                ? formatNumber(stats.periods.today.count)
-                : "…"}{" "}
-              عملية
-            </span>
-          </p>
+          {/* The day's takings and the transaction count used to sit here.
+              Removed at the owner's request: the till is worked by staff, and
+              the shop's running total is the owner's business, not something
+              that should be readable over a cashier's shoulder by whoever is
+              standing at the counter. Both are still on the sales page and the
+              dashboard, which is where the owner looks. */}
         </div>
         <div className="flex items-center gap-2">
           {/* Print settings (paper size, logo, auto-print) */}

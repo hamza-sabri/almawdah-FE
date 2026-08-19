@@ -69,6 +69,8 @@ export type SaleRevision = {
     receipt_code: string
     created_at: string | null
     items: Array<{
+      product_id: number | null
+      variant_id: number | null
       medication_name: string
       variant_label: string
       quantity: string
@@ -169,6 +171,20 @@ export const salesUpdate = (id: number, body: SalePayload) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
+
+/**
+ * Put a sale back the way it was in one of its earlier versions.
+ *
+ * Server-side on purpose: a restore is an EDIT, so it runs the same path a
+ * PATCH does — the version it replaces is filed away first, stock moves by the
+ * difference, and the debt is rebuilt. The server is also the only side that
+ * knows which of the products in that old version still exist.
+ */
+export const salesRestoreRevision = (id: number, version: number) =>
+  customFetch<{ data: Sale }>(
+    `/api/v1/sales/${id}/revisions/${version}/restore/`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+  )
 
 /** Every previous version of a sale, newest first. */
 export const salesRevisions = (id: number) =>

@@ -55,6 +55,30 @@ describe("the version marker", () => {
   })
 })
 
+describe("restoring a version", () => {
+  it("goes through the SERVER, not by rebuilding a PATCH on the client", () => {
+    // The server is the only side that knows which of the products in that old
+    // version still exist — and it already holds the stock/debt logic.
+    expect(SRC).toContain("salesRestoreRevision(saleId, version)")
+    expect(SRC).not.toContain("salesUpdate(")
+  })
+
+  it("asks before it moves stock and a customer's balance", () => {
+    // The restore button sits one pixel from «print».
+    expect(SRC).toContain("setConfirming(rev.version)")
+    expect(SRC).toContain("confirming === rev.version")
+    expect(SRC).toContain("سيتم تعديل المخزون")
+  })
+
+  it("refreshes everything the edit touched", () => {
+    // sale-revisions is keyed by sale id; the rest are flat.
+    expect(SRC).toContain('queryKey: ["sale-revisions", saleId]')
+    for (const key of ["sales", "products", "customers", "dashboard-stats"]) {
+      expect(SRC).toContain(`queryKey: ["${key}"]`)
+    }
+  })
+})
+
 describe("reprinting a version", () => {
   it("keeps the SALE's barcode, not a per-version one", () => {
     expect(SRC).toContain("receiptCode: receiptCode || snap.receipt_code")
