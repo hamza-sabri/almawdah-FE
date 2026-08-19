@@ -125,6 +125,8 @@ function SaleDetail({
   function reprint(s: Sale) {
     const data: ReceiptData = {
       saleId: s.id,
+      // Same number as the original receipt, so a reprint scans identically.
+      receiptCode: s.receipt_code,
       items: s.items.map((it) => ({
         name: saleItemName(it),
         quantity: it.quantity,

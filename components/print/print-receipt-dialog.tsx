@@ -40,6 +40,10 @@ import {
 function saleToReceipt(s: Sale, cashierFallback: string): ReceiptData {
   return {
     saleId: s.id,
+    // The number the barcode encodes. Without it the receipt fell back to the
+    // sale id — so a REPRINT carried a different number than the original,
+    // and scanning it found nothing.
+    receiptCode: s.receipt_code,
     items: s.items.map((it) => ({
       name: it.medication_name || "—",
       quantity: it.quantity,
