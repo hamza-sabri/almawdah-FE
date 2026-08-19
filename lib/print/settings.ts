@@ -39,6 +39,14 @@ export type PrintSettings = {
    * printer says so HERE, once, instead of the app guessing wrong every sale.
    */
   deliver: "print" | "download"
+  /**
+   * Which printer to send receipts to. Empty = whatever the OS calls default.
+   *
+   * Not optional in practice: a Windows till commonly defaults to Microsoft
+   * Print to PDF, and then every receipt is a silent download instead of
+   * paper. Chosen per browser, like the rest of these.
+   */
+  printerName: string
 }
 
 const KEY = "pharma_print_settings_v1"
@@ -59,6 +67,7 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   autoPrint: false,
   receiptBarcode: true,
   deliver: "print",
+  printerName: "",
 }
 
 export function loadPrintSettings(): PrintSettings {

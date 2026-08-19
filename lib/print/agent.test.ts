@@ -67,8 +67,17 @@ describe("agent print", () => {
     expect(await agentPrint("AAEC", "فاتورة 1")).toEqual({ ok: true })
     expect(calls[0][0]).toBe("http://127.0.0.1:9110/print")
     expect(JSON.parse(String(calls[0][1]?.body))).toEqual({
-      data: "AAEC", name: "فاتورة 1",
+      data: "AAEC", name: "فاتورة 1", printer: "",
     })
+  })
+
+  it("sends the CHOSEN printer, not whatever the OS calls default", async () => {
+    // The shop's till defaulted to Microsoft Print to PDF, so every receipt
+    // became a silent download instead of paper.
+    const calls: Array<[string, RequestInit | undefined]> = []
+    stub((u, i) => { calls.push([u, i]); return json({ printed: true }) })
+    await agentPrint("AA", "x", "RONGTA 80mm")
+    expect(JSON.parse(String(calls[0][1]?.body)).printer).toBe("RONGTA 80mm")
   })
 
   it("surfaces the agent's reason when the printer refuses", async () => {

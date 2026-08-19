@@ -15,10 +15,12 @@ import { toast } from "sonner"
 
 import {
   agentPrint,
+  agentPrinters,
   agentStatus,
   testSlipEscPos,
   type AgentStatus,
 } from "@/lib/print/agent"
+import { loadPrintSettings, savePrintSettings } from "@/lib/print/settings"
 import { toBase64 } from "@/lib/print/escpos"
 import { cn } from "@/lib/utils"
 
@@ -71,6 +73,17 @@ function guessOs(): Os {
   }
   return "mac-arm"
 }
+
+/**
+ * Printers that are not printers.
+ *
+ * A Windows till commonly has one of these as the system default, and then
+ * every receipt is a silent PDF download instead of paper — which is exactly
+ * what happened on the shop's machine. Worth saying out loud rather than
+ * leaving someone to wonder where the paper went.
+ */
+const NOT_A_PRINTER =
+  /print to pdf|microsoft xps|onenote|fax|pdf24|cutepdf|adobe pdf|_pdf|to file/i
 
 /**
  * Last resort on macOS. The bundle is ad-hoc signed, so the normal path is
@@ -248,7 +261,14 @@ export function PrintAgentCard() {
   const [status, setStatus] = useState<AgentStatus | null>(null)
   const [checking, setChecking] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [printers, setPrinters] = useState<string[]>([])
+  const [chosen, setChosen] = useState("")
   const alive = useRef(true)
+
+  function pickPrinter(name: string) {
+    setChosen(name)
+    savePrintSettings({ ...loadPrintSettings(), printerName: name })
+  }
 
   const check = useCallback(async (manual = false) => {
     if (manual) setChecking(true)
@@ -261,6 +281,7 @@ export function PrintAgentCard() {
   useEffect(() => {
     alive.current = true
     setOs(guessOs())
+    setChosen(loadPrintSettings().printerName)
     void check()
     const id = setInterval(() => void check(), 2000)
     return () => {
@@ -279,7 +300,11 @@ export function PrintAgentCard() {
   async function testPrint() {
     setTesting(true)
     try {
-      const res = await agentPrint(toBase64(testSlipEscPos()), "اختبار الطباعة")
+      const res = await agentPrint(
+        toBase64(testSlipEscPos()),
+        "اختبار الطباعة",
+        chosen,
+      )
       if (res.ok)
         toast.success("أُرسلت الورقة التجريبية — تحقّق من الطابعة", {
           id: "print-test",
@@ -296,9 +321,29 @@ export function PrintAgentCard() {
     }
   }
 
-  const ok = status?.available === true
-  const noPrinter = status?.available === false && status.reason === "no-printer"
+  // Once the agent answers, ask it what printers exist — this is the list
+  // that reveals a till whose default is a PDF writer.
+  const reachable = status?.available === true || status?.reason === "no-printer"
+  useEffect(() => {
+    if (!reachable) return
+    void agentPrinters().then((p) => {
+      if (!alive.current) return
+      setPrinters(p.printers)
+      // Nothing chosen yet: pick the first REAL printer rather than inheriting
+      // a PDF writer from the OS default.
+      if (!loadPrintSettings().printerName) {
+        const real = p.printers.find((n) => !NOT_A_PRINTER.test(n))
+        if (real && NOT_A_PRINTER.test(p.default)) pickPrinter(real)
+      }
+    })
+  }, [reachable])
+
+  const ok = status?.available === true || (reachable && Boolean(chosen))
+  const noPrinter =
+    status?.available === false && status.reason === "no-printer" && !chosen
   const isMac = os !== "windows"
+  const effective = chosen || (status?.available ? status.printer : "")
+  const pdfTrap = Boolean(effective) && NOT_A_PRINTER.test(effective)
 
   return (
     <div className="space-y-3 rounded-2xl border p-3">
@@ -333,7 +378,7 @@ export function PrintAgentCard() {
           {status === null
             ? "جارٍ الفحص…"
             : ok
-              ? `متصل ✅ — سيُطبع على: ${status.printer || "الطابعة الافتراضية"}`
+              ? `متصل ✅ — سيُطبع على: ${effective || "الطابعة الافتراضية"}`
               : noPrinter
                 ? "البرنامج مثبّت ويعمل ✅ — لكن لا توجد طابعة افتراضية على هذا الجهاز"
                 : "غير مثبّت على هذا الجهاز — اتبع الخطوات بالأسفل"}
@@ -356,6 +401,44 @@ export function PrintAgentCard() {
           طابعة. اضبط طابعة افتراضية في إعدادات النظام وسيتحوّل السطر إلى{" "}
           <b className="text-success">متصل</b> وحده.
         </p>
+      )}
+
+      {reachable && printers.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold">الطابعة المستخدمة</p>
+          <div className="flex flex-wrap gap-1.5">
+            {printers.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => pickPrinter(name)}
+                className={cn(
+                  "rounded-lg border px-2 py-1 text-[11px] font-semibold transition",
+                  effective === name
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:bg-muted/60",
+                )}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          {pdfTrap && (
+            <p className="rounded-lg border border-warning/50 bg-warning/10 p-2 text-[11px] leading-relaxed">
+              هذه ليست طابعة حرارية — إنها تحفظ ملف PDF. لهذا «تُنزَّل» الفاتورة
+              بدل أن تُطبع. اختر طابعة الإيصالات من القائمة أعلاه.
+            </p>
+          )}
+          {!printers.some((n) => !NOT_A_PRINTER.test(n)) && (
+            <p className="rounded-lg border border-warning/50 bg-warning/10 p-2 text-[11px] leading-relaxed">
+              لا توجد طابعة حقيقية على هذا الجهاز — كل ما في القائمة يحفظ ملفات.
+              يجب أن تظهر طابعة الإيصالات في{" "}
+              <b>Settings ← Bluetooth &amp; devices ← Printers &amp; scanners</b>.
+              إن كانت تظهر تحت «أجهزة أخرى» فقط، فإن تعريفها غير مُثبَّت على هذا
+              الجهاز بعد.
+            </p>
+          )}
+        </div>
       )}
 
       {ok && (

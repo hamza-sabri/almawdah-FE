@@ -67,6 +67,29 @@ export async function agentStatus(): Promise<AgentStatus> {
   }
 }
 
+/**
+ * Every printer the machine has, and which one the OS considers default.
+ *
+ * The default is NOT good enough to rely on: the shop's till had Microsoft
+ * Print to PDF as its Windows default, so every receipt became a silent PDF
+ * download and nothing reached the thermal printer. The cashier's machine is
+ * not ours to reconfigure, so the app has to let someone point at the right
+ * device.
+ */
+export async function agentPrinters(): Promise<{
+  printers: string[]
+  default: string
+}> {
+  try {
+    const res = await call("/printers", { method: "GET" }, STATUS_TIMEOUT)
+    if (!res.ok) return { printers: [], default: "" }
+    const d = (await res.json()) as { printers?: string[]; default?: string }
+    return { printers: d.printers ?? [], default: d.default ?? "" }
+  } catch {
+    return { printers: [], default: "" }
+  }
+}
+
 /** ESC/POS for a short self-test slip: legible without a scanner, and short
  *  enough not to waste a metre of roll. */
 export function testSlipEscPos(): Uint8Array {
@@ -88,6 +111,8 @@ export function testSlipEscPos(): Uint8Array {
 export async function agentPrint(
   base64: string,
   name: string,
+  /** Empty = the OS default, which is often the wrong device. */
+  printer = "",
 ): Promise<{ ok: true } | { ok: false; detail?: string }> {
   try {
     const res = await call(
@@ -95,7 +120,7 @@ export async function agentPrint(
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: base64, name }),
+        body: JSON.stringify({ data: base64, name, printer }),
       },
       PRINT_TIMEOUT,
     )

@@ -13,10 +13,14 @@ import { PrintAgentCard } from "@/components/print/print-agent-card"
  */
 vi.mock("@/lib/print/agent", () => ({
   agentStatus: vi.fn(),
+  agentPrint: vi.fn(async () => ({ ok: true })),
+  agentPrinters: vi.fn(async () => ({ printers: [], default: "" })),
+  testSlipEscPos: () => new Uint8Array([1, 2, 3]),
 }))
-import { agentStatus } from "@/lib/print/agent"
+import { agentStatus, agentPrinters } from "@/lib/print/agent"
 
 const mocked = vi.mocked(agentStatus)
+const mockedPrinters = vi.mocked(agentPrinters)
 
 function ua(value: string) {
   Object.defineProperty(window.navigator, "userAgent", {
@@ -28,6 +32,9 @@ function ua(value: string) {
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true })
   mocked.mockReset()
+  mockedPrinters.mockReset()
+  mockedPrinters.mockResolvedValue({ printers: [], default: "" })
+  window.localStorage.clear()
 })
 afterEach(() => vi.useRealTimers())
 
@@ -200,5 +207,79 @@ describe("the manual is complete", () => {
     mocked.mockResolvedValue({ available: false, reason: "no-agent" })
     render(<PrintAgentCard />)
     expect(await screen.findByText(/لا يثبّت أي تعريف/)).toBeTruthy()
+  })
+})
+
+/**
+ * Choosing the printer.
+ *
+ * The shop's till had Microsoft Print to PDF as its Windows default, so every
+ * receipt became a silent PDF download and nothing reached the thermal
+ * printer. Trusting the OS default is not good enough on a machine we do not
+ * control.
+ */
+describe("the printer picker", () => {
+  it("lists every printer the machine has", async () => {
+    mocked.mockResolvedValue({ available: true, printer: "Microsoft Print to PDF", version: "1" })
+    mockedPrinters.mockResolvedValue({
+      printers: ["Microsoft Print to PDF", "RONGTA 80mm"],
+      default: "Microsoft Print to PDF",
+    })
+    render(<PrintAgentCard />)
+    expect(await screen.findByText("RONGTA 80mm")).toBeTruthy()
+  })
+
+  it("auto-selects a real printer when the OS default is a PDF writer", async () => {
+    mocked.mockResolvedValue({ available: true, printer: "Microsoft Print to PDF", version: "1" })
+    mockedPrinters.mockResolvedValue({
+      printers: ["Microsoft Print to PDF", "RONGTA 80mm"],
+      default: "Microsoft Print to PDF",
+    })
+    render(<PrintAgentCard />)
+    await waitFor(() =>
+      expect(JSON.parse(window.localStorage.getItem("pharma_print_settings_v1")!).printerName)
+        .toBe("RONGTA 80mm"),
+    )
+  })
+
+  it("says plainly when the chosen printer only makes files", async () => {
+    mocked.mockResolvedValue({ available: true, printer: "Microsoft Print to PDF", version: "1" })
+    mockedPrinters.mockResolvedValue({
+      printers: ["Microsoft Print to PDF"],
+      default: "Microsoft Print to PDF",
+    })
+    render(<PrintAgentCard />)
+    expect(await screen.findByText(/ليست طابعة حرارية/)).toBeTruthy()
+  })
+
+  it("warns when the machine has no real printer at all", async () => {
+    // The till showed the thermal printer under «أجهزة أخرى» — Windows saw
+    // the USB device but no driver was bound, so it was not a printer yet.
+    mocked.mockResolvedValue({ available: true, printer: "Microsoft Print to PDF", version: "1" })
+    mockedPrinters.mockResolvedValue({
+      printers: ["Microsoft Print to PDF", "Fax"],
+      default: "Microsoft Print to PDF",
+    })
+    render(<PrintAgentCard />)
+    expect(await screen.findByText(/لا توجد طابعة حقيقية/)).toBeTruthy()
+    expect(screen.getByText(/أجهزة أخرى/)).toBeTruthy()
+  })
+
+  it("remembers the choice", async () => {
+    mocked.mockResolvedValue({ available: true, printer: "A", version: "1" })
+    mockedPrinters.mockResolvedValue({ printers: ["A", "RONGTA"], default: "A" })
+    render(<PrintAgentCard />)
+    fireEvent.click(await screen.findByText("RONGTA"))
+    expect(
+      JSON.parse(window.localStorage.getItem("pharma_print_settings_v1")!).printerName,
+    ).toBe("RONGTA")
+  })
+
+  it("names the chosen printer in the status line, not the OS default", async () => {
+    mocked.mockResolvedValue({ available: true, printer: "Microsoft Print to PDF", version: "1" })
+    mockedPrinters.mockResolvedValue({ printers: ["Microsoft Print to PDF", "RONGTA"], default: "Microsoft Print to PDF" })
+    render(<PrintAgentCard />)
+    fireEvent.click(await screen.findByText("RONGTA"))
+    await waitFor(() => expect(screen.getByText(/سيُطبع على: RONGTA/)).toBeTruthy())
   })
 })

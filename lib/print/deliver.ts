@@ -44,7 +44,9 @@ async function viaAgent(
   storeName: string,
 ): Promise<DeliverResult | null> {
   const status = await agentStatus()
-  if (!status.available) {
+  // A chosen printer overrides "there is no default" — the till may have no
+  // Windows default at all while still having the receipt printer installed.
+  if (!status.available && !(status.reason === "no-printer" && settings.printerName)) {
     // No agent at all → fall through to the browser. No PRINTER, though, is a
     // real answer: paper is not coming out of this machine today.
     return status.reason === "no-printer"
@@ -65,8 +67,16 @@ async function viaAgent(
     ctx.getImageData(0, 0, canvas.width, canvas.height),
   )
   const name = `فاتورة ${data.receiptCode || data.saleId || ""}`
-  const res = await agentPrint(toBase64(bytes), name)
-  if (res.ok) return { outcome: "agent", printer: status.printer }
+  const res = await agentPrint(toBase64(bytes), name, settings.printerName)
+  if (res.ok) {
+    // Name the device that actually took the job — a cashier who sees
+    // "Microsoft Print to PDF" here knows instantly why no paper came out.
+    const used =
+      settings.printerName ||
+      (status.available ? status.printer : "") ||
+      undefined
+    return { outcome: "agent", printer: used }
+  }
   return { outcome: "unavailable", detail: res.detail }
 }
 
