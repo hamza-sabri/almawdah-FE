@@ -374,6 +374,41 @@ export function PrintAgentCard() {
         </button>
       )}
 
+      {/*
+        The one test that tells the two failures apart.
+
+        When fetch() fails, JavaScript cannot see WHY — a stopped agent and a
+        browser that blocked the local-network request are the same error
+        object. Opening the agent's own page in a tab is not subject to that
+        restriction, so it answers the question in five seconds: if the page
+        loads, the agent is fine and the problem is a browser permission; if
+        it does not, the agent is not running.
+      */}
+      {status?.available === false && status.reason === "no-agent" && (
+        <div className="space-y-1.5 rounded-xl border border-dashed p-2.5">
+          <p className="text-[11px] font-semibold">
+            افحص بنفسك — يفرّق بين مشكلتين تبدوان متشابهتين:
+          </p>
+          <a
+            href="http://127.0.0.1:9110"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition hover:bg-muted"
+          >
+            افتح صفحة خادم الطباعة في تبويب جديد
+          </a>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <b className="text-foreground">ظهرت صفحة «خادم الطباعة يعمل»؟</b>{" "}
+            إذن البرنامج سليم والمشكلة أن المتصفح يمنع الاتصال بالشبكة المحلية —
+            اضغط أيقونة القفل بجانب عنوان الموقع ← إعدادات الموقع ← اسمح بـ{" "}
+            <b className="text-foreground">Local network</b>، ثم حدّث الصفحة.
+            <br />
+            <b className="text-foreground">لم تظهر؟</b> إذن البرنامج غير مُشغَّل —
+            افتحه بضغطتين من جديد.
+          </p>
+        </div>
+      )}
+
       {/* Nothing below this line is needed once it is connected. */}
       {!ok && (
         <>
@@ -428,6 +463,14 @@ export function PrintAgentCard() {
                 في تبويب جديد. إن ظهرت صفحة «خادم الطباعة يعمل» فالبرنامج شغّال
                 والمشكلة في إذن المتصفح فقط؛ وإن لم تظهر فالبرنامج لم يبدأ — أعد
                 فتحه بضغطتين.
+              </p>
+              <p>
+                سجلّ البرنامج يكتب سبب أي فشل هنا:
+                <br />
+                <code dir="ltr">%AppData%\MawaddaPrint\agent.log</code> على
+                ويندوز، و{" "}
+                <code dir="ltr">~/Library/Application Support/MawaddaPrint/agent.log</code>{" "}
+                على الماك.
               </p>
             </Fold>
 
