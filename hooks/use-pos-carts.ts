@@ -69,6 +69,22 @@ export type Cart = {
   payment: "cash" | "debt"
   /** Return mode (إرجاع): stock goes back and the amount is refunded. */
   isReturn?: boolean
+  /**
+   * The id of the sale this cart is CORRECTING, if any.
+   *
+   * A cart with this set does not create a sale on checkout — it PATCHes that
+   * one, keeping its receipt number, its place in the day, and its customer,
+   * while the server files the previous version away. Absent on every ordinary
+   * cart, which is the normal case.
+   *
+   * It lives on the cart (not in a ref or the URL) so it survives parking,
+   * a reload, and the cross-device sync — the same way everything else the
+   * cashier has half-finished does. A correction abandoned on the till at
+   * closing time is still a correction when the shop opens.
+   */
+  editingSaleId?: number
+  /** The receipt number of the sale being corrected — shown, never sent. */
+  editingReceipt?: string
   /** Total-after-discount. Defaults to the cart total until the cashier
    *  edits it (tracked by `discountTouched`). */
   discounted: string
@@ -125,16 +141,39 @@ export function usePosCarts() {
   // used to ignore stale snapshots and our own echoes from the subscription.
   const lastSavedAt = useRef(0)
 
+  // Live mirrors so imperative actions (close/clear) can read current state
+  // and push a definitive copy to the server without waiting for the effect.
+  const cartsRef = useRef<Cart[]>([])
+  cartsRef.current = carts
+  const activeIdRef = useRef("")
+  activeIdRef.current = activeId
+
   const applyRemote = useCallback((remote: RemoteState) => {
     if (!Array.isArray(remote.carts) || remote.carts.length === 0) return
     skipPush.current = true // don't echo the received state back
-    setCarts(remote.carts)
+    const incoming = remote.carts
+
+    // A CORRECTION opened on this device moments ago cannot be in the remote
+    // snapshot — that was fetched before the cashier tapped the pencil.
+    // Replacing the array wholesale would delete it while she was looking at
+    // it, and the sale would simply never open.
+    //
+    // ONLY corrections are rescued, deliberately: an ordinary cart missing
+    // from the remote copy usually means another till closed it, and bringing
+    // those back would undo that.
+    const rescued = cartsRef.current.filter(
+      (c) => c.editingSaleId != null && !incoming.some((r) => r.id === c.id),
+    )
+    setCarts(rescued.length > 0 ? [...incoming, ...rescued] : incoming)
     setActiveId((cur) =>
-      remote.carts!.some((c) => c.id === cur)
+      // Mid-edit keeps the focus.
+      rescued.some((c) => c.id === cur)
         ? cur
-        : remote.carts!.some((c) => c.id === remote.activeId)
-          ? remote.activeId!
-          : remote.carts![0].id,
+        : incoming.some((c) => c.id === cur)
+          ? cur
+          : incoming.some((c) => c.id === remote.activeId)
+            ? remote.activeId!
+            : incoming[0].id,
     )
   }, [])
 
@@ -293,13 +332,6 @@ export function usePosCarts() {
       if (livePushTimer.current) clearTimeout(livePushTimer.current)
     }
   }, [carts, activeId])
-
-  // Live mirrors so imperative actions (close/clear) can read current state
-  // and push a definitive copy to the server without waiting for the effect.
-  const cartsRef = useRef<Cart[]>([])
-  cartsRef.current = carts
-  const activeIdRef = useRef("")
-  activeIdRef.current = activeId
 
   /** Push a state to the server RIGHT NOW (localStorage + Convex + Django),
    *  no debounce. Used when the cashier deletes/clears a cart so the emptied
@@ -564,6 +596,58 @@ export function usePosCarts() {
     setActiveId(c.id)
   }, [])
 
+  /**
+   * Open a cart that CORRECTS an existing sale.
+   *
+   * Re-entering the same sale twice must not open two carts: the cashier taps
+   * the pencil, gets distracted, taps it again, and would otherwise be editing
+   * one invoice from two baskets with only the last save surviving. So an
+   * existing cart for the same sale is reused and simply brought to the front.
+   */
+  const openSaleForEdit = useCallback(
+    (sale: {
+      id: number
+      receiptCode?: string
+      customerId?: number | null
+      customerName?: string
+      payment?: "cash" | "debt"
+      isReturn?: boolean
+      discounted?: string
+      lines: CartLine[]
+    }) => {
+      const existing = cartsRef.current.find((c) => c.editingSaleId === sale.id)
+      if (existing) {
+        setActiveId(existing.id)
+        return existing.id
+      }
+      const c: Cart = {
+        ...freshCart(),
+        editingSaleId: sale.id,
+        editingReceipt: sale.receiptCode || "",
+        customerId: sale.customerId ?? null,
+        customerName: sale.customerName ?? "",
+        payment: sale.payment ?? "cash",
+        isReturn: Boolean(sale.isReturn),
+        discounted: sale.discounted ?? "",
+        discountTouched: Boolean(sale.discounted),
+        lines: sale.lines,
+      }
+      const next = [...cartsRef.current, c]
+      setCarts(next)
+      setActiveId(c.id)
+      // Commit RIGHT NOW rather than waiting for the debounced push.
+      //
+      // The server copy of the carts is fetched when the POS mounts — before
+      // the cashier taps the pencil. It lands a moment later and replaces the
+      // whole list, which would delete this cart while she is looking at it.
+      // flushNow stamps a newer savedAt, so that in-flight snapshot loses on
+      // arrival instead of winning. Same reason closeCart flushes.
+      flushNow(next, c.id)
+      return c.id
+    },
+    [flushNow],
+  )
+
   /** Drop a cart (after checkout or cancel). Always keeps one cart open.
    *  The result is flushed to the server immediately so a deleted cart never
    *  comes back on the next login. */
@@ -634,6 +718,7 @@ export function usePosCarts() {
     setLineTotal,
     removeLine,
     parkAndNew,
+    openSaleForEdit,
     closeCart,
     clearAll,
     reconcile,

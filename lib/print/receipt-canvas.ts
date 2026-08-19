@@ -17,7 +17,7 @@
 
 import { barcodeModules } from "@/lib/print/barcode"
 import { formatMoney } from "@/lib/format"
-import type { ReceiptData } from "@/lib/print/receipt"
+import { badgeLabels, type ReceiptData } from "@/lib/print/receipt"
 
 const FONT = '"IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif'
 
@@ -120,13 +120,27 @@ export function renderReceiptCanvas(
   measure.font = `600 ${bodyFont}`
   const wrapped = data.items.map((it) => wrap(measure, it.name, nameW))
 
+  // Built here rather than at draw time so the height below can COUNT them.
+  // These two lists used to be measured with fixed guesses ("four meta rows"),
+  // which had no slack left the moment a fifth was added — and an under-tall
+  // canvas silently clips the bottom of a receipt.
+  const badges = badgeLabels(data)
+  const code = data.receiptCode || (data.saleId != null ? String(data.saleId) : "")
+  const meta: Array<[string, string]> = [
+    [data.isReturn ? "إرجاع رقم" : "فاتورة رقم", code || "—"],
+    ["التاريخ", fmtDate(data.createdAt)],
+    ["الدفع", data.paymentMethod === "debt" ? "دين (آجل)" : "نقدي"],
+  ]
+  if (data.customerName) meta.push(["الزبون", data.customerName])
+  if (data.cashierName) meta.push(["الكاشير", data.cashierName])
+
   let h = S(24)
   h += S(46) // store name
   if (opts.phone) h += S(26)
   if (opts.address) h += S(26)
   h += S(20)
-  if (data.isReturn) h += S(44)
-  h += S(30) * 4 + S(16) // meta rows
+  h += badges.length * S(44)
+  h += meta.length * S(28) + S(26)
   h += S(34) // table head
   for (const lines of wrapped) h += lines.length * S(26) + S(24)
   h += S(20) + S(32) // rule + total
@@ -170,24 +184,17 @@ export function renderReceiptCanvas(
   dashed(ctx, y, W, pad)
   y += S(20)
 
-  if (data.isReturn) {
+  for (const label of badges) {
     ctx.font = `700 ${S(22)}px ${FONT}`
     ctx.strokeStyle = "#000"
     ctx.lineWidth = 2
     ctx.strokeRect(pad + S(40), y, inner - S(80), S(34))
-    ctx.fillText("فاتورة إرجاع", W / 2, y + S(25))
+    ctx.textAlign = "center"
+    ctx.fillText(label, W / 2, y + S(25))
     y += S(44)
   }
 
   // ── meta ────────────────────────────────────────────────────────────
-  const code = data.receiptCode || (data.saleId != null ? String(data.saleId) : "")
-  const meta: Array<[string, string]> = [
-    [data.isReturn ? "إرجاع رقم" : "فاتورة رقم", code || "—"],
-    ["التاريخ", fmtDate(data.createdAt)],
-    ["الدفع", data.paymentMethod === "debt" ? "دين (آجل)" : "نقدي"],
-  ]
-  if (data.customerName) meta.push(["الزبون", data.customerName])
-  if (data.cashierName) meta.push(["الكاشير", data.cashierName])
   ctx.font = `${S(19)}px ${FONT}`
   for (const [k, v] of meta) {
     ctx.textAlign = "right"

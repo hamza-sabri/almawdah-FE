@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -13,6 +13,7 @@ import {
   Loader2,
   Minus,
   Package,
+  Pencil,
   Plus,
   Printer,
   ScanBarcode,
@@ -30,7 +31,9 @@ import { productsList } from "@/api/generated/products/products"
 import type { Product } from "@/api/generated/model"
 import { colorHexOf } from "@/lib/variant-options"
 import {
+  salesList,
   salesStats,
+  salesUpdate,
   saleItemName,
   type CatalogMed,
   type CatalogVariant,
@@ -55,8 +58,10 @@ import {
 } from "@/components/pos/quick-items-panel"
 import { useScanAlert } from "@/components/pos/scan-alert"
 import { TopupButtons } from "@/components/pos/topup-buttons"
+import { QuickCards } from "@/components/pos/quick-cards"
 import { ManualLineRow } from "@/components/pos/manual-line-row"
 import { useCustomersCatalog } from "@/hooks/use-customers-catalog"
+import { useSaleEditLink } from "@/hooks/use-sale-edit-link"
 import { useDebounced } from "@/hooks/use-debounced"
 import {
   usePosCarts,
@@ -117,6 +122,12 @@ type CheckoutInput = {
   snapshot: SaleSnapshot
   /** Print even if auto-print is off — the printer button asked for it. */
   forcePrint?: boolean
+  /**
+   * Set when this cart is CORRECTING an existing sale rather than ringing a
+   * new one — see Cart.editingSaleId. Sends a PATCH, so the sale keeps its id
+   * and its receipt number and the server files the old version away.
+   */
+  editingSaleId?: number
 }
 
 /**
@@ -244,13 +255,35 @@ function useCheckout(pos: Pos, onDone?: () => void) {
   const pharmacyLogo = me?.pharmacy_logo || ""
 
   return useMutation({
-    mutationFn: async ({ body, snapshot, forcePrint }: CheckoutInput) => {
+    mutationFn: async ({
+      body,
+      snapshot,
+      forcePrint,
+      editingSaleId,
+    }: CheckoutInput) => {
       const key = body.client_uuid ?? ""
       if (key && inFlightCarts.has(key)) {
         throw new Error("جارٍ إتمام البيع — انتظر لحظة")
       }
       if (key) inFlightCarts.add(key)
       try {
+        if (editingSaleId != null) {
+          // Corrections are NOT queued offline. The offline path exists so a
+          // sale can still be RUNG during a cut and reconciled later; a
+          // correction has to be applied against the row as the server holds
+          // it now — replaying it hours later could overwrite a change made in
+          // between, and silently. Better to say so and let the cashier retry.
+          if (typeof navigator !== "undefined" && navigator.onLine === false) {
+            throw new Error("تعديل الفاتورة يحتاج اتصالاً — حاول بعد عودة الإنترنت")
+          }
+          const res = await salesUpdate(editingSaleId, body)
+          return {
+            res: { status: "synced" as const, sale: res.data },
+            snapshot,
+            forcePrint,
+            edited: true,
+          }
+        }
         const res = await submitSale(body, {
           total: snapshot.total,
           discountedTotal: snapshot.discountedTotal,
@@ -259,12 +292,12 @@ function useCheckout(pos: Pos, onDone?: () => void) {
           customerName: snapshot.customerName,
           cashierName,
         })
-        return { res, snapshot, forcePrint }
+        return { res, snapshot, forcePrint, edited: false }
       } finally {
         if (key) inFlightCarts.delete(key)
       }
     },
-    onSuccess: ({ res, snapshot, forcePrint }) => {
+    onSuccess: ({ res, snapshot, forcePrint, edited }) => {
       const settings = loadPrintSettings()
       const wantPrint = forcePrint || settings.autoPrint
       // One toast per checkout, keyed so the printing result can be written
@@ -272,7 +305,9 @@ function useCheckout(pos: Pos, onDone?: () => void) {
       const toastId = `sale-${snapshot.receiptCode || Date.now()}`
       if (res.status === "synced") {
         const sale = res.sale
-        const headline = `${sale.is_return ? "تم الإرجاع" : "تم البيع"} — ${formatMoney(sale.discounted_total)}`
+        const headline = edited
+          ? `تم تعديل الفاتورة ${sale.receipt_code || sale.id} — ${formatMoney(sale.discounted_total)}`
+          : `${sale.is_return ? "تم الإرجاع" : "تم البيع"} — ${formatMoney(sale.discounted_total)}`
         toast.success(headline, { id: toastId, duration: 3500 })
         if (wantPrint) {
           printAndAnnounce(
@@ -364,15 +399,26 @@ function buildPayload(pos: Pos): CheckoutInput | null {
   // A customer is attached ONLY for debt sales (that's who owes).
   const isDebt = !active.isReturn && active.payment === "debt"
   const paymentMethod: "cash" | "debt" = active.isReturn ? "cash" : active.payment
+  // A correction keeps the ORIGINAL sale's identity. Minting a new
+  // client_uuid or receipt code for it would be meaningless at best (the
+  // server refuses to move either) and confusing at worst, so neither is sent.
+  const editingSaleId = active.editingSaleId
   const body: SalePayload = {
     // Stable for this cart across every attempt — see Cart.saleUuid. Without
     // it, a retry becomes a second sale instead of being collapsed server-side.
-    client_uuid: pos.ensureSaleUuid(),
+    client_uuid: editingSaleId != null ? undefined : pos.ensureSaleUuid(),
     // Printed as the barcode. Minted here, not server-side: an offline sale
     // prints before the server knows it exists, and that paper has to stay
     // findable.
-    receipt_code: pos.ensureReceiptCode(),
-    customer: isDebt ? (active.customerId ?? undefined) : undefined,
+    receipt_code:
+      editingSaleId != null ? undefined : pos.ensureReceiptCode(),
+    // On a correction this is sent even when it is null, so switching a credit
+    // sale back to cash actually detaches the customer.
+    customer: isDebt
+      ? (active.customerId ?? undefined)
+      : editingSaleId != null
+        ? null
+        : undefined,
     payment_method: paymentMethod,
     is_return: active.isReturn || undefined,
     items: active.lines.map((l) => ({
@@ -396,7 +442,7 @@ function buildPayload(pos: Pos): CheckoutInput | null {
         : undefined,
   }
   const snapshot: SaleSnapshot = {
-    receiptCode: body.receipt_code,
+    receiptCode: body.receipt_code || active.editingReceipt || "",
     items: active.lines.map((l) => ({
       name: l.variantLabel ? `${l.name} — ${l.variantLabel}` : l.name,
       quantity: l.quantity,
@@ -408,7 +454,7 @@ function buildPayload(pos: Pos): CheckoutInput | null {
     paymentMethod,
     customerName: active.customerName || undefined,
   }
-  return { body, snapshot }
+  return { body, snapshot, editingSaleId }
 }
 
 /* ── Parked-carts tabs ─────────────────────────────────────────────── */
@@ -711,7 +757,11 @@ function CheckoutButtons({
         ) : (
           <ShoppingBag className="size-5" />
         )}
-        {active?.isReturn ? "إتمام الإرجاع" : "إتمام البيع"}
+        {active?.editingSaleId != null
+          ? "حفظ التعديل"
+          : active?.isReturn
+            ? "إتمام الإرجاع"
+            : "إتمام البيع"}
       </button>
       {/* Print the cart BEFORE it is a sale — the customer asks "how much?"
           and wants it on paper, or the cashier wants to check the list against
@@ -1337,6 +1387,24 @@ function TableMode({
           وضع الإرجاع — المخزون سيُعاد والمبلغ سيُخصم من المبيعات
         </div>
       )}
+      {/* Impossible to miss on purpose: a cashier who does not notice this
+          thinks she is ringing a new sale and instead overwrites an old one. */}
+      {active.editingSaleId != null && (
+        <div className="animate-in fade-in flex items-center gap-2 rounded-2xl bg-warning/15 px-3.5 py-2 text-xs font-semibold text-warning-foreground duration-200">
+          <Pencil className="size-4 shrink-0" />
+          <span className="flex-1">
+            تعديل الفاتورة {active.editingReceipt || active.editingSaleId} —
+            ستُحدَّث الفاتورة نفسها وتبقى النسخة السابقة محفوظة في السجل
+          </span>
+          <button
+            type="button"
+            onClick={() => pos.closeCart(pos.activeId)}
+            className="shrink-0 rounded-lg px-2 py-0.5 underline-offset-2 hover:underline"
+          >
+            إلغاء التعديل
+          </button>
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <SearchInput
@@ -1355,6 +1423,10 @@ function TableMode({
             playBeep(true)
           }}
         />
+        {/* The two or three things this shop sells every minute. They sit HERE,
+            beside جوال, not inside the "بدون باركود" drawer: needing to open a
+            195-item panel to reach دخان is not a shortcut. */}
+        <QuickCards catalog={catalog} onPick={onPick} />
         {quickCount > 0 && (
           <button
             type="button"
@@ -1556,8 +1628,10 @@ function TableMode({
 }
 
 /* ── POS home ──────────────────────────────────────────────────────── */
-export default function PosPage() {
+function PosPageInner() {
   const pos = usePosCarts()
+  // `/pos?edit=<id>` — the pencil on a sale lands here and opens it as a cart.
+  useSaleEditLink(pos.openSaleForEdit)
   const pageCheckout = useCheckout(pos)
   // Complete the active cart's sale (fired by a bare Enter, or Enter from the
   // auto-focused quantity field). Silent no-op on an empty cart so a stray
@@ -2232,5 +2306,24 @@ export default function PosPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+/**
+ * useSearchParams() must sit inside a Suspense boundary.
+ *
+ * Without one, Next's static prerender pass hands the client component an
+ * EMPTY parameter set and never re-renders it with the real query string — so
+ * `/pos?edit=145648` reaches the till looking exactly like a plain `/pos`, the
+ * sale is never fetched, and the only symptom is an empty cart. Silent, and
+ * indistinguishable from "the link is broken".
+ *
+ * Same reason /inventory and /login are wrapped.
+ */
+export default function PosPage() {
+  return (
+    <Suspense fallback={null}>
+      <PosPageInner />
+    </Suspense>
   )
 }

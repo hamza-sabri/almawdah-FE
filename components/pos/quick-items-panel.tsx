@@ -142,8 +142,12 @@ export function QuickItemsPanel({
         />
       </div>
 
+      {/* Labelled because the cards above render some of the same product
+          names; tests (and a screen reader) need to tell the two apart. */}
       <div
         data-slot="card"
+        role="group"
+        aria-label="قائمة الأصناف بدون باركود"
         className="min-h-0 flex-1 overflow-y-auto rounded-2xl border bg-card"
       >
         {items.length === 0 ? (

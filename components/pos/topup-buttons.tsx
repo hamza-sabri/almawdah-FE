@@ -6,7 +6,7 @@ import { Smartphone } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /**
- * Mobile top-up: جوال and وطنية.
+ * Mobile top-up: جوال.
  *
  * Phone credit was the shop's SECOND most-transacted line in the old system —
  * 3,145 sales, ₪83,575 — under a single catalogue item called "شحن رصيد" with
@@ -25,10 +25,8 @@ import { cn } from "@/lib/utils"
  * every time the cashier actually wanted ₪50, which is money out of the till.
  */
 
-export const TOPUP_NETWORKS = [
-  { key: "jawwal", label: "جوال" },
-  { key: "wataniya", label: "وطنية" },
-] as const
+// وطنية removed at the owner's request — this shop only sells جوال credit.
+export const TOPUP_NETWORKS = [{ key: "jawwal", label: "جوال" }] as const
 
 /** ₪10 first because it is the common sale — it is a default position, not a
  * default charge. Nothing is added until one of these is pressed. */

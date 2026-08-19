@@ -32,9 +32,14 @@ describe("top-up buttons", () => {
   it("names the network, so the sale can be split later", () => {
     const onAdd = vi.fn()
     render(<TopupButtons onAdd={onAdd} />)
-    fireEvent.click(screen.getByText("وطنية"))
+    fireEvent.click(screen.getByText("جوال"))
     fireEvent.click(screen.getByText("20"))
-    expect(onAdd).toHaveBeenCalledWith("تعبئة كرت وطنية", 20)
+    expect(onAdd).toHaveBeenCalledWith("تعبئة كرت جوال", 20)
+  })
+
+  it("does not offer وطنية — the shop does not sell it", () => {
+    render(<TopupButtons onAdd={vi.fn()} />)
+    expect(screen.queryByText("وطنية")).toBeNull()
   })
 
   it("offers 10, 20, 30, 50 and 100", () => {
@@ -63,15 +68,14 @@ describe("top-up buttons", () => {
 
   it("closes on Escape", () => {
     render(<TopupButtons onAdd={vi.fn()} />)
-    fireEvent.click(screen.getByText("وطنية"))
+    fireEvent.click(screen.getByText("جوال"))
     fireEvent.keyDown(document, { key: "Escape" })
     expect(screen.queryByText("50")).toBeNull()
   })
 
-  it("switching networks moves the picker instead of opening two", () => {
+  it("opens only one picker at a time", () => {
     render(<TopupButtons onAdd={vi.fn()} />)
     fireEvent.click(screen.getByText("جوال"))
-    fireEvent.click(screen.getByText("وطنية"))
     expect(screen.getAllByRole("menu")).toHaveLength(1)
   })
 })

@@ -14,8 +14,9 @@ import {
   CheckSquare,
   Layers,
   Loader2,
-  PackagePlus,
   Package,
+  PackageCheck,
+  PackagePlus,
   PlusCircle,
   Tag,
   Trash2,
@@ -50,6 +51,7 @@ import { EmptyState, ErrorState } from "@/components/states"
 import { NoMedsArt } from "@/components/illustrations"
 import { MedicationForm } from "@/components/forms/product-form"
 import { VariantsManager } from "@/components/variants-manager"
+import { BoxDialog } from "@/components/inventory/box-dialog"
 import { PrintLabelDialog } from "@/components/print/print-label-dialog"
 import { ConfirmDelete } from "@/components/confirm-delete"
 import {
@@ -113,6 +115,7 @@ function MedCard({
   onDelete,
   onPrintLabel,
   onVariants,
+  onBox,
   selectMode = false,
   selected = false,
   onToggleSelect,
@@ -122,6 +125,7 @@ function MedCard({
   onDelete: () => void
   onPrintLabel: () => void
   onVariants: () => void
+  onBox: () => void
   selectMode?: boolean
   selected?: boolean
   onToggleSelect?: () => void
@@ -130,8 +134,11 @@ function MedCard({
   // `string | number` and every `stock <= 5` was relying on JS
   // coercion. Coerce once, here.
   const stock = Number(med.stock ?? 0)
-  const variantCount =
-    (med as unknown as { variants?: unknown[] }).variants?.length ?? 0
+  const variants =
+    (med as unknown as { variants?: { pack_size?: string | null }[] }).variants ?? []
+  const variantCount = variants.length
+  // A box is a variant with a real pack size — not a colour or a flavour.
+  const hasBox = variants.some((v) => Number(v.pack_size ?? 0) > 0)
   const primaryAction = selectMode ? onToggleSelect : onEdit
   return (
     <Card
@@ -196,10 +203,31 @@ function MedCard({
           </span>
         ) : (
           <div
-            className="absolute end-1.5 top-1.5 rounded-full bg-card/80 shadow-sm backdrop-blur-sm"
+            className="absolute end-1.5 top-1.5 flex items-center gap-1"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
+            {/* One click to say "this also comes in a box". Filled when it
+                already has one, so the whole grid is scannable at a glance. */}
+            <button
+              type="button"
+              onClick={onBox}
+              title={hasBox ? "تعديل العبوة" : "إضافة عبوة"}
+              aria-label={hasBox ? "تعديل العبوة" : "إضافة عبوة"}
+              className={cn(
+                "grid size-8 place-items-center rounded-full shadow-sm backdrop-blur-sm transition",
+                hasBox
+                  ? "bg-primary text-white hover:bg-primary/90"
+                  : "bg-card/80 text-muted-foreground hover:text-primary",
+              )}
+            >
+              {hasBox ? (
+                <PackageCheck className="size-4" />
+              ) : (
+                <PackagePlus className="size-4" />
+              )}
+            </button>
+            <div className="rounded-full bg-card/80 shadow-sm backdrop-blur-sm">
             <RowActions
               onEdit={onEdit}
               onDelete={onDelete}
@@ -216,6 +244,7 @@ function MedCard({
                 },
               ]}
             />
+            </div>
           </div>
         )}
       </div>
@@ -342,6 +371,7 @@ function MedicationsPageInner() {
   const [toDelete, setToDelete] = useState<Product | null>(null)
   const [toLabel, setToLabel] = useState<Product | null>(null)
   const [toVariants, setToVariants] = useState<Product | null>(null)
+  const [toBox, setToBox] = useState<Product | null>(null)
   const [deleting, setDeleting] = useState(false)
   const isOwner = useIsOwner()
   const [selectMode, setSelectMode] = useState(false)
@@ -719,6 +749,7 @@ function MedicationsPageInner() {
                 onDelete={() => setToDelete(m)}
                 onPrintLabel={() => setToLabel(m)}
                 onVariants={() => setToVariants(m)}
+                onBox={() => setToBox(m)}
                 selectMode={selectMode}
                 selected={selected.has(m.id)}
                 onToggleSelect={() => toggleSelect(m.id)}
@@ -751,6 +782,14 @@ function MedicationsPageInner() {
             : undefined
         }
       />
+      <BoxDialog
+        open={Boolean(toBox)}
+        onOpenChange={(v) => !v && setToBox(null)}
+        productId={toBox?.id ?? null}
+        productName={toBox?.name ?? ""}
+        piecePrice={toBox?.price ?? 0}
+      />
+
       <VariantsManager
         open={Boolean(toVariants)}
         onOpenChange={(o) => !o && setToVariants(null)}

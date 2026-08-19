@@ -13,6 +13,10 @@ export type Variant = {
   is_active: boolean
   attributes?: Record<string, unknown>
   image?: string
+  /** Pieces inside the box. null/0 = a plain variant, not a pack. */
+  pack_size?: string | null
+  /** Read-only: piece price × pack_size, what the backend would default to. */
+  suggested_price?: string
 }
 
 export type VariantInput = {
@@ -24,6 +28,7 @@ export type VariantInput = {
   stock?: string
   is_active?: boolean
   attributes?: Record<string, string>
+  pack_size?: string | null
 }
 
 export const listVariants = (medicationId: number) =>

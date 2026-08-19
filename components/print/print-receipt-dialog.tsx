@@ -106,7 +106,7 @@ export function PrintReceiptDialog({
   // Key is under the shared "sales" prefix so every sales invalidation (POS
   // checkout, voiding a sale) refreshes this picker too. staleTime 0 means
   // opening always shows the latest.
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ["sales", "print", params],
     queryFn: async () => (await salesList(params)).data.results,
     enabled: open,
@@ -115,6 +115,10 @@ export function PrintReceiptDialog({
     refetchOnWindowFocus: true,
   })
   const sales = useMemo(() => data ?? [], [data])
+  // Same rule as the sales page: hide stale rows while a scan is in flight,
+  // including the debounce window, so a scanned receipt never leaves the
+  // previous results on screen looking like the answer.
+  const searching = isLoading || isFetching || item.trim() !== dItem.trim()
 
   // Each time the dialog opens: default to the newest and pull fresh data.
   useEffect(() => {
@@ -217,7 +221,7 @@ export function PrintReceiptDialog({
 
         {/* Sales list */}
         <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto">
-          {isLoading && (
+          {searching && (
             <div className="grid place-items-center py-10 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
             </div>
@@ -225,13 +229,13 @@ export function PrintReceiptDialog({
           {isError && (
             <div className="grid place-items-center py-10 text-sm text-destructive">تعذّر تحميل المبيعات</div>
           )}
-          {!isLoading && !isError && sales.length === 0 && (
+          {!searching && !isError && sales.length === 0 && (
             <div className="grid place-items-center gap-2 py-10 text-center text-sm text-muted-foreground">
               <ReceiptText className="size-7 opacity-40" />
               لا توجد مبيعات مطابقة
             </div>
           )}
-          {sales.map((s) => {
+          {!searching && sales.map((s) => {
             const isSel = s.id === selected
             return (
               <button

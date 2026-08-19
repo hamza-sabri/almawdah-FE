@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { render, screen, fireEvent, within } from "@testing-library/react"
+
+/**
+ * Everything below asserts about the LIST — the long tail of unscannable
+ * items. The quick cards used to render above it and repeated some of the same
+ * names; they now live in the POS toolbar beside جوال (quick-cards.test.tsx),
+ * but the scoping stays: it says which region each assertion means.
+ */
+function list() {
+  return within(screen.getByRole("group", { name: "قائمة الأصناف بدون باركود" }))
+}
 
 import {
   QuickItemsPanel,
@@ -45,15 +55,15 @@ describe("the panel", () => {
 
   it("lists every unscannable item with its price", () => {
     render(<QuickItemsPanel catalog={CATALOG} onPick={vi.fn()} />)
-    expect(screen.getByText("سيجارة حلل")).toBeTruthy()
-    expect(screen.getByText("شحن رصيد")).toBeTruthy()
+    expect(list().getByText("سيجارة حلل")).toBeTruthy()
+    expect(list().getByText("شحن رصيد")).toBeTruthy()
     expect(screen.queryByText("بندورة")).toBeNull() // scannable
   })
 
   it("one tap adds it to the cart", () => {
     const onPick = vi.fn()
     render(<QuickItemsPanel catalog={CATALOG} onPick={onPick} />)
-    fireEvent.click(screen.getByText("بيض"))
+    fireEvent.click(list().getByText("بيض"))
     expect(onPick).toHaveBeenCalledWith(
       expect.objectContaining({ name: "بيض" }),
     )
@@ -64,15 +74,15 @@ describe("the panel", () => {
     fireEvent.change(screen.getByLabelText("ابحث في الأصناف بدون باركود"), {
       target: { value: "شحن" },
     })
-    expect(screen.getByText("شحن رصيد")).toBeTruthy()
-    expect(screen.queryByText("بيض")).toBeNull()
+    expect(list().getByText("شحن رصيد")).toBeTruthy()
+    expect(list().queryByText("بيض")).toBeNull()
   })
 
   it("puts tobacco first, before anything else", () => {
     // The owner asked for it and the export agrees: سيجارة حلل alone is more
     // than half of every barcode-less sale line this shop has ever rung.
     render(<QuickItemsPanel catalog={CATALOG} onPick={vi.fn()} />)
-    const rows = screen.getAllByRole("button")
+    const rows = list().getAllByRole("button")
     expect(rows[0].textContent).toContain("سيجارة حلل")
   })
 
@@ -82,11 +92,11 @@ describe("the panel", () => {
     const { unmount } = render(
       <QuickItemsPanel catalog={CATALOG} onPick={vi.fn()} />,
     )
-    fireEvent.click(screen.getByText("بيض"))
+    fireEvent.click(list().getByText("بيض"))
     unmount()
 
     render(<QuickItemsPanel catalog={CATALOG} onPick={vi.fn()} />)
-    const rows = screen.getAllByRole("button")
+    const rows = list().getAllByRole("button")
     expect(rows[0].textContent).toContain("سيجارة حلل") // still pinned
     expect(rows[1].textContent).toContain("بيض")
   })

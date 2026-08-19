@@ -75,7 +75,13 @@ describe("the POS supplies a cart-scoped key", () => {
   )
 
   it("buildPayload puts the cart's key on the request", () => {
-    expect(pos).toMatch(/client_uuid:\s*pos\.ensureSaleUuid\(\)/)
+    // Conditional since sales can also be CORRECTED in place: a correction
+    // PATCHes an existing sale, where a fresh idempotency key would mean
+    // nothing. Every cart that rings a NEW sale still carries the cart's own
+    // stable key, which is what stops a retry becoming a second sale.
+    expect(pos).toMatch(
+      /client_uuid:\s*editingSaleId != null \? undefined : pos\.ensureSaleUuid\(\)/,
+    )
   })
 
   it("the key is minted with the cart and lives on it", () => {

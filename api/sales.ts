@@ -12,6 +12,12 @@ export type SaleItem = {
   variant_label?: string
   category?: string
   unit_price: string
+  /**
+   * The catalogue price at the moment of sale, when the cashier overrode it at
+   * the till. NULL/absent means unit_price WAS the catalogue price.
+   * Backend: SaleItem.original_unit_price.
+   */
+  original_unit_price?: string | null
   quantity: number
   line_total?: string
 }
@@ -40,8 +46,36 @@ export type Sale = {
   receipt_code?: string
   created_by?: number | null
   created_by_name?: string
+  /** How many earlier versions this sale has. 0 = never corrected. */
+  revision_count?: number
   created_at: string
   updated_at: string
+}
+
+/** One past version of a sale, kept whole. Backend: SaleRevision. */
+export type SaleRevision = {
+  id: number
+  /** 1 is the sale as it was originally rung. */
+  version: number
+  edited_at: string
+  edited_by: string
+  snapshot: {
+    total: string
+    discounted_total: string
+    payment_method: "cash" | "debt"
+    is_return: boolean
+    customer_name: string
+    note: string
+    receipt_code: string
+    created_at: string | null
+    items: Array<{
+      medication_name: string
+      variant_label: string
+      quantity: string
+      unit_price: string
+      line_total: string
+    }>
+  }
 }
 
 export type SalePayload = {
@@ -115,6 +149,32 @@ export const salesCreate = (body: SalePayload) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
+
+export const salesGet = (id: number) =>
+  customFetch<{ data: Sale }>(`/api/v1/sales/${id}/`)
+
+/**
+ * Correct a sale in place.
+ *
+ * PATCH, not POST: the sale keeps its id, its receipt number and its place in
+ * the day, so the paper already in the customer's hand still finds it. The
+ * server files the whole previous version away first — see salesRevisions.
+ *
+ * `items` is a full replacement, not a merge: send every line the corrected
+ * sale should have. Sending none is refused rather than emptying the invoice.
+ */
+export const salesUpdate = (id: number, body: SalePayload) =>
+  customFetch<{ data: Sale }>(`/api/v1/sales/${id}/`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })
+
+/** Every previous version of a sale, newest first. */
+export const salesRevisions = (id: number) =>
+  customFetch<{ data: { results: SaleRevision[] } }>(
+    `/api/v1/sales/${id}/revisions/`,
+  )
 
 export const salesDelete = (id: number) =>
   customFetch<void>(`/api/v1/sales/${id}/`, { method: "DELETE" })

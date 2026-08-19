@@ -61,6 +61,34 @@ export type ReceiptData = {
    * reaches the server.
    */
   receiptCode?: string
+  /**
+   * Marks the paper as a HISTORICAL version of the sale, e.g. «نسخة سابقة 2».
+   *
+   * A corrected sale keeps its receipt number, so a reprint of an old version
+   * carries the same barcode as the live invoice while showing different
+   * lines and a different total. Two pieces of paper, one number, no way to
+   * tell them apart — unless the paper says so itself. Printed as a badge, in
+   * the same place as the return marker, because it has to be read before the
+   * numbers are.
+   */
+  versionLabel?: string
+}
+
+/**
+ * The markers printed above the numbers, in reading order.
+ *
+ * Shared by the HTML receipt and the thermal raster: they are two separate
+ * renderers of the same paper, and a marker that appears on only one of them
+ * is worse than none — the one that actually reaches a customer is the raster.
+ */
+export function badgeLabels(data: {
+  isReturn?: boolean
+  versionLabel?: string
+}): string[] {
+  const out: string[] = []
+  if (data.isReturn) out.push("فاتورة إرجاع")
+  if (data.versionLabel) out.push(data.versionLabel)
+  return out
 }
 
 function esc(s: unknown): string {
@@ -165,10 +193,14 @@ function receiptBodyHtml(data: ReceiptData, name: string, s: PrintSettings, logo
   const discount = data.total - data.discountedTotal
   const payLabel = data.paymentMethod === "debt" ? "دين (آجل)" : "نقدي"
 
-  // Only the return marker survives. The sync state was printed as a warning
-  // badge; it is the till's business, not the customer's, and by the time
-  // anyone reads the paper it is usually no longer true.
-  const badges = data.isReturn ? `<div class="badge">فاتورة إرجاع</div>` : ""
+  // The sync state used to be printed as a badge too; it is the till's
+  // business, not the customer's, and by the time anyone reads the paper it is
+  // usually no longer true. What remains is what changes how the paper should
+  // be read: that it is a return, or that it is an old version of a corrected
+  // sale carrying the same barcode as the live one.
+  const badges = badgeLabels(data)
+    .map((l) => `<div class="badge">${esc(l)}</div>`)
+    .join("")
 
   // The receipt number, as a scannable barcode. Falls back to the sale id so a
   // sale recorded before this feature still prints something.

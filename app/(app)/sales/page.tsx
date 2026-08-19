@@ -11,6 +11,7 @@ import {
   CalendarDays,
   CloudOff,
   Package,
+  Pencil,
   Printer,
   ReceiptText,
   SlidersHorizontal,
@@ -44,6 +45,7 @@ import {
 } from "@/lib/offline/local-sale"
 import { bulkDeleteSales } from "@/api/products"
 
+import { SaleRevisions } from "@/components/sales/sale-revisions"
 import { PageHeader } from "@/components/page-header"
 import { ReportsTeaser } from "@/components/reports/reports-teaser"
 
@@ -238,6 +240,14 @@ function SaleDetail({
                 </div>
               </div>
 
+              {/* Nothing at all on an untouched invoice, which is nearly all
+                  of them. */}
+              <SaleRevisions
+                saleId={sale.id}
+                count={sale.revision_count ?? 0}
+                receiptCode={sale.receipt_code}
+              />
+
               <div className="overflow-hidden rounded-2xl border">
                 <Table>
                   <TableHeader>
@@ -271,14 +281,44 @@ function SaleDetail({
             </div>
 
             <div className="flex flex-row items-center justify-between gap-2 border-t border-border/70 bg-muted/30 px-6 py-4">
-              <button
-                type="button"
-                onClick={() => reprint(sale)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:brightness-110"
-              >
-                <Printer className="size-4" />
-                طباعة الفاتورة
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => reprint(sale)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:brightness-110"
+                >
+                  <Printer className="size-4" />
+                  طباعة الفاتورة
+                </button>
+                {/* Correct the sale instead of voiding and re-ringing it: the
+                    receipt already in the customer's hand keeps pointing at the
+                    right invoice, and the day's history shows one sale for one
+                    basket. A queued sale has no server id yet, so there is
+                    nothing to PATCH. */}
+                <Link
+                  href={isLocalSale(sale.id) ? "#" : `/pos?edit=${sale.id}`}
+                  onClick={(e) => {
+                    if (isLocalSale(sale.id)) {
+                      e.preventDefault()
+                      return
+                    }
+                    onOpenChange(false)
+                  }}
+                  aria-disabled={isLocalSale(sale.id)}
+                  title={
+                    isLocalSale(sale.id)
+                      ? "لا يمكن تعديل بيع لم تتم مزامنته بعد — انتظر عودة الاتصال"
+                      : "تعديل الفاتورة في نقطة البيع"
+                  }
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition hover:bg-muted",
+                    isLocalSale(sale.id) && "pointer-events-none opacity-40",
+                  )}
+                >
+                  <Pencil className="size-4" />
+                  تعديل
+                </Link>
+              </div>
               {/* Voiding PATCHes /sales/<id>/. A queued sale has no server id
                   yet, so the call would go out as -1. Fix it at the source in
                   the POS (or wait for the sync) instead. */}
@@ -392,7 +432,12 @@ export default function SalesPage() {
     })
   }, [results])
 
-  useStaggerCards(scope, "tbody tr", !isLoading, [
+  // Busy = first load, a fetch in flight, or a term typed/scanned that the
+  // debounce has not sent yet. All three must hide the stale rows.
+  const searching =
+    isLoading || isFetching || searchRaw.trim() !== dItem.trim()
+
+  useStaggerCards(scope, "tbody tr", !searching, [
     dItem,
     payment,
     kind,
@@ -717,7 +762,14 @@ export default function SalesPage() {
         </div>
       )}
 
-      {isLoading && (
+      {/*
+        Hide the rows WHILE searching, not only on the first load.
+        React Query keeps the previous page during a refetch, so scanning a
+        receipt left the old sales on screen with no sign anything was
+        happening — the cashier could not tell whether the scan had registered
+        or whether those rows were the answer.
+      */}
+      {searching && (
         <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-14 rounded-xl" />
@@ -725,14 +777,14 @@ export default function SalesPage() {
         </div>
       )}
       {isError && <ErrorState onRetry={() => refetch()} />}
-      {!isLoading && !isError && results.length === 0 && (
+      {!searching && !isError && results.length === 0 && (
         <EmptyState
           art={<NoDataArt className="h-32 w-auto" />}
           title="لا توجد مبيعات"
           description="أتمم أول عملية بيع من نقطة البيع"
         />
       )}
-      {!isLoading && !isError && results.length > 0 && (
+      {!searching && !isError && results.length > 0 && (
         <div className="flex flex-col gap-3">
           <div data-slot="card" className="clay-card overflow-hidden rounded-3xl">
             <Table>
@@ -750,6 +802,7 @@ export default function SalesPage() {
                   <TableHead className="hidden text-start md:table-cell">
                     البائع
                   </TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -781,6 +834,18 @@ export default function SalesPage() {
                               >
                                 <CloudOff className="size-3" />
                                 {LOCAL_SALE_LABEL}
+                              </span>
+                            )}
+                            {/* Visible in the LIST, not only after opening the
+                                invoice: an edited sale is the one an owner
+                                scanning the day's takings needs to spot. */}
+                            {(s.revision_count ?? 0) > 0 && (
+                              <span
+                                className="pill pill-warning shrink-0 gap-1 text-[10px]"
+                                title={`عُدّلت ${s.revision_count} مرة — افتح الفاتورة لعرض النسخ السابقة`}
+                              >
+                                <Pencil className="size-3" />
+                                معدّلة
                               </span>
                             )}
                           </div>
@@ -820,6 +885,22 @@ export default function SalesPage() {
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">
                       {s.created_by_name || "—"}
+                    </TableCell>
+                    <TableCell className="w-10 p-0 pe-2">
+                      {/* Straight to the till. stopPropagation because the row
+                          itself opens the detail dialog — without it the pencil
+                          would navigate AND leave a dialog open behind it. */}
+                      {!isLocalSale(s.id) && (
+                        <Link
+                          href={`/pos?edit=${s.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          title="تعديل الفاتورة"
+                          aria-label="تعديل الفاتورة"
+                          className="grid size-8 place-items-center rounded-lg text-muted-foreground/60 transition hover:bg-primary/10 hover:text-primary"
+                        >
+                          <Pencil className="size-4" />
+                        </Link>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
