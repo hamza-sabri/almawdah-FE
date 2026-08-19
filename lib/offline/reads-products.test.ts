@@ -25,8 +25,49 @@ const CATALOG = [
   { id: 3, name: "أرز", barcode: "333", price: "11.00", stock: 3, category: "معلبات" },
 ]
 
+/**
+ * The same three rows plus the two shapes the "الوحدات" chips exist to tell
+ * apart: a real box, and a variant that is only a flavour.
+ */
+const CATALOG_WITH_UNITS = [
+  ...CATALOG,
+  // Sold by the box: 404 of the shop's 2,398 products have one.
+  {
+    id: 4,
+    name: "بونشي",
+    barcode: "444",
+    price: "1.00",
+    stock: 5,
+    category: "معلبات",
+    variants: [
+      {
+        id: 41, label: "عبوة ×24", barcode: "444-B",
+        price: "20.00", stock: 2, pack_size: "24.000",
+      },
+    ],
+  },
+  // Has a variant, but it is a flavour — NOT a box.
+  {
+    id: 5,
+    name: "عصير",
+    barcode: "555",
+    price: "3.00",
+    stock: 4,
+    category: "مشروبات",
+    variants: [
+      {
+        id: 51, label: "فراولة", barcode: "555-F",
+        price: "3.00", stock: 4, pack_size: null,
+      },
+    ],
+  },
+]
+
+/** Which fixture the mocked mirror hands back for the current test. */
+let mirror: unknown[] = CATALOG
+
 vi.mock("@/lib/offline/catalog-cache", () => ({
-  readCachedCatalog: vi.fn(async () => CATALOG),
+  readCachedCatalog: vi.fn(async () => mirror),
 }))
 vi.mock("@/lib/offline/queue", () => ({ listQueuedSales: vi.fn(async () => []) }))
 vi.mock("@/lib/offline/idb", () => ({
@@ -45,7 +86,10 @@ async function list(query: string) {
 }
 
 describe("offline /products/ answers the inventory page's filters", () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mirror = CATALOG
+  })
 
   it("returns the whole catalogue with no filters", async () => {
     expect((await list("")).count).toBe(3)
@@ -113,5 +157,55 @@ describe("offline /products/ answers the inventory page's filters", () => {
     expect((await list("?search=6291234")).results.map((r) => r.name)).toEqual([
       "بندورة",
     ])
+  })
+})
+
+/**
+ * The "الوحدات" chips. A box is priced differently from the pieces inside it,
+ * so "which products come in a box" is the question the owner asks before a
+ * stocktake or a price change — and it has to answer the same offline, since
+ * the shop's connection is the thing that drops.
+ */
+describe("offline /products/?units=", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mirror = CATALOG_WITH_UNITS
+  })
+
+  it("units=pack lists only what has a real box size", async () => {
+    const d = await list("?units=pack")
+    expect(d.results.map((r) => r.name)).toEqual(["بونشي"])
+  })
+
+  it("a flavour variant is not a box", async () => {
+    const d = await list("?units=pack")
+    expect(d.results.map((r) => r.name)).not.toContain("عصير")
+  })
+
+  it("units=variant lists anything with a sub-SKU", async () => {
+    const d = await list("?units=variant")
+    expect(d.results.map((r) => r.name).sort()).toEqual(["بونشي", "عصير"])
+  })
+
+  it("units=plain lists only single-piece products", async () => {
+    const d = await list("?units=plain")
+    expect(d.results.map((r) => r.name).sort()).toEqual(
+      ["أرز", "بندورة", "فول"].sort(),
+    )
+  })
+
+  it("the count matches the filtered rows, not the catalogue", async () => {
+    const d = await list("?units=pack")
+    expect(d.count).toBe(1)
+  })
+
+  it("composes with the other chips instead of replacing them", async () => {
+    const d = await list("?units=variant&category=معلبات")
+    expect(d.results.map((r) => r.name)).toEqual(["بونشي"])
+  })
+
+  it("an unknown value lists everything rather than nothing", async () => {
+    const d = await list("?units=banana")
+    expect(d.count).toBe(CATALOG_WITH_UNITS.length)
   })
 })

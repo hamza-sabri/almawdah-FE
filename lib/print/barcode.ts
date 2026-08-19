@@ -145,6 +145,24 @@ export function barcodeSvg(
   )
 }
 
+/**
+ * The bar/space runs of `data`, in modules, starting with a BAR.
+ *
+ * Same symbol as `barcodeSvg`, without committing to SVG — the thermal-printer
+ * path draws it onto a canvas in printer dots, where a module has to land on a
+ * whole number of dots or the scanner reads a different number than the one
+ * printed underneath it.
+ */
+export function barcodeModules(data: string): number[] | null {
+  const codes = encode(data)
+  if (!codes) return null
+  const runs: number[] = []
+  for (const code of codes) {
+    for (const ch of PATTERNS[code]) runs.push(Number.parseInt(ch, 10))
+  }
+  return runs
+}
+
 /** True when a value can be turned into a scannable Code 128 symbol. */
 export function canEncodeBarcode(data: string | null | undefined): boolean {
   if (!data) return false

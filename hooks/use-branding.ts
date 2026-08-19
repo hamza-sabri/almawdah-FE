@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import {
@@ -27,6 +28,18 @@ function readCached(): Branding | null {
  * rest of the app).
  */
 export function useBranding() {
+  /**
+   * The server has no localStorage, so `initialData` below resolves to
+   * undefined there and to the cached branding here — server rendered
+   * "المودة", the browser rendered "سوبر ماركت المودة", and React threw a
+   * hydration mismatch and re-rendered the tree.
+   *
+   * So: everyone shows the default for the first paint, and the real name
+   * appears immediately after mount. One extra frame, no mismatch.
+   */
+  const [hydrated, setHydrated] = useState(false)
+  useEffect(() => setHydrated(true), [])
+
   const { data } = useQuery<Branding | null>({
     queryKey: ["public-branding"],
     queryFn: async () => {
@@ -57,10 +70,11 @@ export function useBranding() {
     refetchOnWindowFocus: false,
   })
 
+  const branding = hydrated ? data : undefined
   return {
     /** Store name, or the deployment default when unknown. */
-    name: data?.name?.trim() || DEFAULT_BRAND_NAME,
+    name: branding?.name?.trim() || DEFAULT_BRAND_NAME,
     /** Store logo URL, or "" when the tenant has none (use the default mark). */
-    logo: data?.logo || "",
+    logo: branding?.logo || "",
   }
 }

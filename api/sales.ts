@@ -36,6 +36,8 @@ export type Sale = {
   discounted_total: string
   debt: number | null
   note: string
+  /** The 12-digit number printed as a barcode on this sale's receipt. */
+  receipt_code?: string
   created_by?: number | null
   created_by_name?: string
   created_at: string
@@ -57,6 +59,13 @@ export type SalePayload = {
   }>
   discounted_total?: string
   note?: string
+  /**
+   * The number printed as a barcode on the receipt (12 digits, YYMMDD + 6).
+   * Minted on the till so an offline receipt stays findable after it syncs;
+   * the server replaces it only if it is malformed or already used.
+   * Backend: Sale.receipt_code.
+   */
+  receipt_code?: string
   /**
    * Idempotency key for offline sync: a client-generated UUID. Re-sending the
    * same key returns the original sale instead of creating a duplicate, so a
@@ -121,6 +130,10 @@ export type CatalogVariant = {
   price: string | number
   stock: number
   attributes?: Record<string, unknown>
+  /** Pieces inside the box. null/0 = a plain variant (colour, flavour), not a
+   *  pack. Carried offline so /inventory's "له عبوة" filter works with no
+   *  network. */
+  pack_size?: string | number | null
 }
 
 export type CatalogMed = {

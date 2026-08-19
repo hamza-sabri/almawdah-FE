@@ -12,6 +12,9 @@ export type MedStats = {
   retail_value: string
   cost_value: string
   by_category: { category: string; count: number }[]
+  /** How the catalogue is packaged — drives the "الوحدات" filter counts.
+   *  Optional: a backend deployed before this field still answers. */
+  units?: { pack: number; variant: number; plain: number }
 }
 
 /** Catalogue KPIs from GET /api/v1/products/stats/. */

@@ -111,11 +111,16 @@ function Field({
 }
 
 /**
- * The extras panel (cost, brand, manufacturer, expiry alerts, variants) is not
- * part of what this store bought. Kept in the tree rather than deleted so
- * turning it back on is this one line, not a re-implementation.
+ * The extras panel — cost, category, brand, manufacturer, notes, and the
+ * variants/box editor. Enabled for this store.
+ *
+ * Images and the product video stay OFF (see IMAGES_ENABLED): a supermarket
+ * catalogue of 2,398 items is never going to be photographed, the upload path
+ * is the slowest thing in the form, and an empty picture frame on every
+ * product makes the app look unfinished rather than fast.
  */
-const EXTRAS_ENABLED = false
+const EXTRAS_ENABLED = true
+const IMAGES_ENABLED = false
 
 export function MedicationForm({
   open,
@@ -402,26 +407,34 @@ export function MedicationForm({
         </Field>
       </div>
 
-      {/* ── Extras — locked on this store's plan ───────────────────────
-          The fields underneath (cost, brand, manufacturer, expiry alerts,
-          variants) are not part of what this store bought. Showing the row
-          greyed with a padlock is deliberate: hiding it entirely makes the
-          product look thinner than it is, and the owner has no idea the
-          capability exists. Tapping it explains, once, without a sales pitch. */}
-      <button
-        type="button"
-        onClick={() => openPlanLocked("التفاصيل الإضافية")}
-        aria-disabled="true"
-        className="flex w-full cursor-not-allowed items-center justify-between rounded-xl bg-muted/40 px-3.5 py-2.5 text-sm font-medium text-muted-foreground/60 transition hover:bg-muted/60"
-      >
-        <span className="flex items-center gap-2">
-          <Lock className="size-3.5" />
+      {/* ── Extras ─────────────────────────────────────────────────── */}
+      {EXTRAS_ENABLED ? (
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          className="flex w-full items-center justify-between rounded-xl bg-muted/60 px-3.5 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-muted"
+        >
           تفاصيل إضافية (اختياري)
-        </span>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground/70">
-          غير مشمولة
-        </span>
-      </button>
+          <ChevronDown
+            className={cn("size-4 transition-transform", showMore && "rotate-180")}
+          />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => openPlanLocked("التفاصيل الإضافية")}
+          aria-disabled="true"
+          className="flex w-full cursor-not-allowed items-center justify-between rounded-xl bg-muted/40 px-3.5 py-2.5 text-sm font-medium text-muted-foreground/60 transition hover:bg-muted/60"
+        >
+          <span className="flex items-center gap-2">
+            <Lock className="size-3.5" />
+            تفاصيل إضافية (اختياري)
+          </span>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground/70">
+            غير مشمولة
+          </span>
+        </button>
+      )}
 
       {EXTRAS_ENABLED && showMore && (
         <div className="space-y-3.5">
@@ -459,13 +472,16 @@ export function MedicationForm({
               />
             </Field>
           </div>
-          <MedicationImages
-            photos={photos}
-            setPhotos={setPhotos}
-            mainKey={mainKey}
-            setMainKey={setMainKey}
-          />
+          {IMAGES_ENABLED && (
+            <MedicationImages
+              photos={photos}
+              setPhotos={setPhotos}
+              mainKey={mainKey}
+              setMainKey={setMainKey}
+            />
+          )}
           {/* Optional product video — a direct file link or YouTube/Vimeo. */}
+          {IMAGES_ENABLED && (
           <Field label="رابط فيديو المنتج (اختياري)">
             <Input
               value={videoUrl}
@@ -476,6 +492,7 @@ export function MedicationForm({
             />
             {videoUrl.trim() && <VideoPlayer url={videoUrl} className="mt-2" />}
           </Field>
+          )}
           <Field label="ملاحظات">
             <Textarea rows={2} {...register("notes")} />
           </Field>

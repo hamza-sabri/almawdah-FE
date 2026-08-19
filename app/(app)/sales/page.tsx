@@ -167,7 +167,7 @@ function SaleDetail({
                     {/* A queued sale has no server number yet — showing
                         "بيع رقم -1" would read as a data bug. */}
                     <p className="text-xs text-white/55">
-                      {saleNumberLabel(sale.id)}
+                      {saleNumberLabel(sale.id, sale.receipt_code)}
                     </p>
                   </div>
                 </div>
@@ -646,7 +646,7 @@ export default function SalesPage() {
           <SearchInput
             value={searchRaw}
             onChange={setSearchRaw}
-            placeholder="ابحث عن بيع بالصنف أو الباركود…"
+            placeholder="امسح باركود الفاتورة أو ابحث بالصنف…"
             className="flex-1"
             scan
           />

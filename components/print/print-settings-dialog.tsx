@@ -13,6 +13,7 @@ import {
   type PrintSettings,
 } from "@/lib/print/settings"
 import { printReceipt } from "@/lib/print/receipt"
+import { PrintAgentCard } from "@/components/print/print-agent-card"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -214,13 +215,38 @@ export function PrintSettingsDialog({
             </div>
           </div>
 
+          <PrintAgentCard />
+
+          {/* Where a receipt goes */}
           <div className="space-y-1.5">
-            <Label htmlFor="ps-foot">سطر أسفل الفاتورة</Label>
-            <Input
-              id="ps-foot"
-              value={s.footer}
-              onChange={(e) => patch({ footer: e.target.value })}
-            />
+            <Label>عند الطباعة</Label>
+            <div className="flex gap-2">
+              {(
+                [
+                  ["print", "أطبع على الطابعة"],
+                  ["download", "نزّل الفاتورة (لا توجد طابعة)"],
+                ] as const
+              ).map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => patch({ deliver: v })}
+                  className={cn(
+                    "flex-1 rounded-xl border px-3 py-2 text-xs font-semibold transition",
+                    s.deliver === v
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:bg-muted/60",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              المتصفح لا يستطيع معرفة إن كانت هناك طابعة موصولة. إن لم تكن هناك
+              طابعة على هذا الجهاز، اختر «نزّل الفاتورة» ولن تظهر نافذة الطباعة
+              أبداً.
+            </p>
           </div>
 
           {/* Paper width */}

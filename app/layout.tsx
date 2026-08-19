@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { IBM_Plex_Sans_Arabic, IBM_Plex_Mono, Alexandria } from 'next/font/google'
 import { Clarity } from '@/components/clarity'
 import { Providers } from '@/components/providers'
+import { UpdatePrompt } from "@/components/offline/update-prompt"
 import { SwRegister } from '@/components/offline/sw-register'
 import { brandingIconUrl, fetchBranding } from '@/lib/branding'
 import { TENANT_ATTR } from '@/lib/site'
@@ -98,6 +99,7 @@ export default async function RootLayout({
       <body className="font-sans antialiased">
         <Providers>{children}</Providers>
         <SwRegister />
+        <UpdatePrompt />
         <Toaster position="top-center" richColors />
         {/* Vercel Analytics removed: this deploys to a Hostinger VPS behind
             Traefik, so its script had no collector to talk to — a dead request

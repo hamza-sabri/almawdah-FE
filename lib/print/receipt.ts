@@ -9,7 +9,11 @@
  * print dialog, so it works with any installed printer — a cheap USB/Bluetooth
  * thermal printer set to 58/80 mm, or a normal A4 printer while testing.
  *
- * Arabic RTL layout, indigo brand, swappable logo slot (see settings.ts).
+ * Arabic RTL layout, swappable logo slot (see settings.ts).
+ *
+ * Deliberately BLACK ONLY. A thermal roll has no colour to print with, and on
+ * a colour printer the tinted badges came out as grey blocks that ate ink and
+ * made the paper harder to read. Everything here is #000 on white.
  */
 
 import { formatMoney } from "@/lib/format"
@@ -20,6 +24,8 @@ import {
   type PrintSettings,
 } from "@/lib/print/settings"
 
+// Shelf LABELS still use the brand colours — they are printed on a colour
+// printer onto sticker sheets. Receipts do not: see baseStyles below.
 const BRAND_INK = "#201f38"
 const BRAND_INDIGO = "#5B5CE2"
 
@@ -42,8 +48,19 @@ export type ReceiptData = {
   customerName?: string
   cashierName?: string
   createdAt?: string | Date
-  /** Sale hasn't reached the server yet (queued offline) — flag it clearly. */
+  /**
+   * Sale hasn't reached the server yet (queued offline). Kept because it
+   * suppresses the barcode for a quote, but it is no longer PRINTED: the
+   * customer has no use for the till's sync state, and the owner reads it off
+   * the sales list, where it is a live fact rather than one frozen on paper.
+   */
   offline?: boolean
+  /**
+   * The 12-digit number printed as the barcode. This — not the sale id — is
+   * what the owner scans to find the sale, because it exists before the sale
+   * reaches the server.
+   */
+  receiptCode?: string
 }
 
 function esc(s: unknown): string {
@@ -104,18 +121,18 @@ function baseStyles(paperMm: number): string {
     }
     .head { text-align: center; margin-bottom: 6px; }
     .logo { max-width: ${content - 4}mm; max-height: 20mm; object-fit: contain; }
-    .wordmark { font-weight: 800; font-size: 20px; color: ${BRAND_INDIGO}; letter-spacing: -0.02em; }
+    .wordmark { font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
     .name { font-weight: 700; font-size: 13px; margin-top: 2px; }
-    .muted { color: #333; font-size: 11px; }
+    .muted { font-size: 11px; }
     .rule { border-top: 1px dashed #000; margin: 6px 0; }
     .meta { font-size: 11px; }
     .meta .row { display: flex; justify-content: space-between; gap: 8px; }
+    /* No tint: a thermal roll cannot print colour, and on a colour printer
+       these came out as grey blocks. A border says the same thing in black. */
     .badge {
-      display: inline-block; margin: 4px auto; padding: 2px 10px; border-radius: 999px;
-      font-weight: 700; font-size: 12px; text-align: center;
+      display: block; margin: 4px auto; padding: 2px 10px;
+      border: 1px solid #000; font-weight: 700; font-size: 12px; text-align: center;
     }
-    .badge.ret { background: #fdecec; color: #b91c1c; }
-    .badge.off { background: #fff4d6; color: #92600a; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 2px 0; font-size: 11px; vertical-align: top; }
     thead th { border-bottom: 1px solid #000; font-weight: 700; text-align: right; }
@@ -125,9 +142,10 @@ function baseStyles(paperMm: number): string {
     .totals { margin-top: 4px; font-size: 12px; }
     .totals .row { display: flex; justify-content: space-between; padding: 1px 0; }
     .totals .grand { font-weight: 800; font-size: 15px; border-top: 1px solid #000; margin-top: 3px; padding-top: 4px; }
-    .foot { text-align: center; margin-top: 8px; font-size: 11px; color: #111; }
-    .foot .barcode { margin-top: 6px; }
-    .foot .barcode div { font-size: 10px; letter-spacing: 2px; }
+    /* The barcode is the only thing under the total now — no thank-you line,
+       no sync notice. It is what the owner scans to pull this sale back up. */
+    .foot { text-align: center; margin-top: 10px; }
+    .foot .num { font-size: 11px; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
   `
 }
 
@@ -147,16 +165,26 @@ function receiptBodyHtml(data: ReceiptData, name: string, s: PrintSettings, logo
   const discount = data.total - data.discountedTotal
   const payLabel = data.paymentMethod === "debt" ? "دين (آجل)" : "نقدي"
 
-  const badges = [
-    data.isReturn ? `<div class="badge ret">فاتورة إرجاع</div>` : "",
-    data.offline ? `<div class="badge off">غير مُزامنة — بانتظار الاتصال</div>` : "",
-  ]
-    .filter(Boolean)
-    .join("")
+  // Only the return marker survives. The sync state was printed as a warning
+  // badge; it is the till's business, not the customer's, and by the time
+  // anyone reads the paper it is usually no longer true.
+  const badges = data.isReturn ? `<div class="badge">فاتورة إرجاع</div>` : ""
 
+  // The receipt number, as a scannable barcode. Falls back to the sale id so a
+  // sale recorded before this feature still prints something.
+  const code = data.receiptCode || (data.saleId != null ? String(data.saleId) : "")
+  // Narrower bars on a 58mm roll. At moduleWidth 1.6 a 12-digit Code 128 comes
+  // out 51.2mm wide inside a 52mm printable area — it "fits" with 0.8mm to
+  // spare, which the roll drifting in its holder eats on the first jam. 1.15
+  // gives ~37mm and still decodes cleanly at a thermal head's 203dpi (checked
+  // by feeding the rendered receipt back through the app's own zbar decoder).
+  const narrow = s.paper === "58"
   const barcode =
-    s.receiptBarcode && data.saleId != null
-      ? (barcodeSvg(String(data.saleId), { moduleWidth: 1.6, height: 40 }) ?? "")
+    s.receiptBarcode && code
+      ? (barcodeSvg(code, {
+          moduleWidth: narrow ? 1.15 : 1.6,
+          height: narrow ? 34 : 40,
+        }) ?? "")
       : ""
 
   return `
@@ -164,7 +192,7 @@ function receiptBodyHtml(data: ReceiptData, name: string, s: PrintSettings, logo
     <div class="rule"></div>
     ${badges}
     <div class="meta">
-      <div class="row"><span>${data.isReturn ? "إرجاع رقم" : "فاتورة رقم"}</span><span>${esc(data.saleId ?? "—")}</span></div>
+      <div class="row"><span>${data.isReturn ? "إرجاع رقم" : "فاتورة رقم"}</span><span>${esc(code || data.saleId || "—")}</span></div>
       <div class="row"><span>التاريخ</span><span>${esc(fmtDate(data.createdAt))}</span></div>
       <div class="row"><span>الدفع</span><span>${payLabel}</span></div>
       ${data.customerName ? `<div class="row"><span>الزبون</span><span>${esc(data.customerName)}</span></div>` : ""}
@@ -184,14 +212,56 @@ function receiptBodyHtml(data: ReceiptData, name: string, s: PrintSettings, logo
       <div class="row grand"><span>${data.isReturn ? "المبلغ المُعاد" : "المطلوب"}</span><span>${esc(formatMoney(data.discountedTotal))}</span></div>
     </div>
     <div class="foot">
-      ${s.footer ? `<div>${esc(s.footer)}</div>` : ""}
-      ${barcode ? `<div class="barcode">${barcode}<div>${esc(data.saleId)}</div></div>` : ""}
+      ${barcode ? `${barcode}<div class="num">${esc(code)}</div>` : ""}
     </div>
   `
 }
 
-/** Drive the OS print dialog from a throwaway hidden iframe. */
-function printHtml(innerHtml: string, styles: string, title: string): void {
+/**
+ * What actually happened when we tried to print.
+ *
+ * A browser cannot enumerate printers — there is no API for "is a printer
+ * connected". What it CAN tell us is whether the print pipeline itself
+ * worked: `window.print()` throws (or does not exist) in a WebView or a
+ * locked-down kiosk browser with no print support. That is the case we can
+ * detect and recover from, by handing the cashier a file instead. A machine
+ * with a print dialog but no printer behind it is indistinguishable from a
+ * healthy one, so the download link is offered on the toast either way.
+ */
+export type PrintOutcome = "agent" | "printed" | "downloaded" | "unavailable"
+
+/** Save the receipt as a self-contained file the cashier can open and print
+ *  later — the fallback when this device cannot print at all. */
+function downloadHtml(html: string, filename: string): string {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  a.style.display = "none"
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  // Kept alive so the toast's "عرض" link can still open it. Browsers drop it
+  // with the document anyway.
+  return url
+}
+
+/** The full standalone document, for the agent path and the file fallback. */
+function receiptDocument(innerHtml: string, styles: string, title: string): string {
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(
+    title,
+  )}</title><style>${styles}</style></head><body>${innerHtml}</body></html>`
+}
+
+/** Drive the printer from a throwaway hidden iframe. */
+function printHtml(
+  innerHtml: string,
+  styles: string,
+  title: string,
+  onOutcome?: (outcome: PrintOutcome, fileUrl?: string) => void,
+  deliver: "print" | "download" = "print",
+): void {
   if (typeof window === "undefined") return
   const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(
     title,
@@ -238,12 +308,40 @@ function printHtml(innerHtml: string, styles: string, title: string): void {
             }),
       ),
     ).then(() => {
+      let outcome: PrintOutcome = "printed"
+      let fileUrl: string | undefined
+      const filename = `${title.replace(/[^\w\u0600-\u06FF -]/g, "")}.html`
+      // This counter has no printer (the owner said so in print settings), so
+      // do NOT call print(): without Chrome's --kiosk-printing that opens the
+      // OS dialog, and asking a cashier to dismiss a dialog on every sale to
+      // reach a file is worse than just handing her the file.
+      if (deliver === "download") {
+        try {
+          fileUrl = downloadHtml(html, filename)
+          outcome = "downloaded"
+        } catch {
+          outcome = "unavailable"
+        }
+        onOutcome?.(outcome, fileUrl)
+        window.setTimeout(cleanup, 1_000)
+        return
+      }
       try {
+        if (typeof win.print !== "function") throw new Error("no print support")
         win.focus()
         win.print()
       } catch {
-        /* user dismissed / no printer — nothing to do */
+        // This device cannot print at all (WebView, locked-down kiosk). Give
+        // the cashier the receipt as a file rather than nothing — the customer
+        // is still standing at the counter.
+        outcome = "unavailable"
+        try {
+          fileUrl = downloadHtml(html, filename)
+        } catch {
+          /* even the download failed — the caller still gets "unavailable" */
+        }
       }
+      onOutcome?.(outcome, fileUrl)
       // Fallback cleanup for browsers that never fire onafterprint.
       window.setTimeout(cleanup, 60_000)
     })
@@ -262,7 +360,9 @@ export function printReceipt(
   pharmacyName = "",
   settings?: PrintSettings,
   logoUrl = "",
+  onOutcome?: (outcome: PrintOutcome, fileUrl?: string) => void,
 ): void {
+  void receiptDocument // used by the agent path (see deliverReceipt)
   const s = settings ?? loadPrintSettings()
   // Name comes from the account's store (backend); the fallback is the
   // deployment brand so a receipt never prints another product's name.
@@ -272,7 +372,9 @@ export function printReceipt(
   printHtml(
     receiptBodyHtml(data, name, s, logoUrl),
     baseStyles(paper),
-    `فاتورة ${data.saleId ?? ""}`,
+    `فاتورة ${data.receiptCode || data.saleId || ""}`,
+    onOutcome,
+    s.deliver,
   )
 }
 

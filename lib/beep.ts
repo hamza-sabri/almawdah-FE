@@ -157,15 +157,47 @@ export function playBeep(ok = true, volume = 1) {
       o1.stop(t + dur + 0.02)
       o2.stop(t + dur + 0.02)
     } else {
-      const osc = c.createOscillator()
-      osc.type = "square"
-      osc.frequency.setValueAtTime(180, t)
-      gain.gain.setValueAtTime(0.0001, t)
-      gain.gain.exponentialRampToValueAtTime(0.12 * volume, t + 0.005)
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.2)
-      osc.connect(gain)
-      osc.start(t)
-      osc.stop(t + 0.22)
+      // THE FAILURE SOUND HAS TO BEAT THE GUN.
+      //
+      // The scanner has its own speaker and chirps on every successful READ —
+      // including when it reads a barcode this shop has never stocked. The
+      // cashier hears that chirp, assumes the item is on the bill, and keeps
+      // going. The old error tone was 0.12 gain against the success tone's
+      // 0.30: the app's "no" was quieter than its "yes", and quieter than the
+      // gun. Items were leaving unpaid.
+      //
+      // So: three descending square-wave blats, each louder than any success
+      // sound, spread over ~0.75s so it cannot be mistaken for the gun's
+      // single chirp.
+      const peak = Math.min(1, 0.85 * volume)
+      const pulses = [
+        { at: 0, freq: 300, dur: 0.18 },
+        { at: 0.22, freq: 240, dur: 0.18 },
+        { at: 0.44, freq: 185, dur: 0.30 },
+      ]
+      for (const pulse of pulses) {
+        const osc = c.createOscillator()
+        const g = c.createGain()
+        const start = t + pulse.at
+        osc.type = "square"
+        osc.frequency.setValueAtTime(pulse.freq, start)
+        g.gain.setValueAtTime(0.0001, start)
+        g.gain.exponentialRampToValueAtTime(peak, start + 0.008)
+        g.gain.setValueAtTime(peak, start + pulse.dur - 0.04)
+        g.gain.exponentialRampToValueAtTime(0.0001, start + pulse.dur)
+        osc.connect(g)
+        g.connect(gain)
+        osc.start(start)
+        osc.stop(start + pulse.dur + 0.02)
+      }
+      gain.gain.setValueAtTime(1, t)
+      // Phones and most tablets: a long buzz alongside the sound, for a noisy
+      // shop where the speaker alone can be missed.
+      try {
+        navigator.vibrate?.([180, 90, 180, 90, 320])
+      } catch {
+        /* unsupported — sound + the red flash still fire */
+      }
     }
   } catch {
     /* audio unavailable — vibration/toast still give feedback */

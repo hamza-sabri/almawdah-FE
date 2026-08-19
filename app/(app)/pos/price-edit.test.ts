@@ -12,6 +12,13 @@ import path from "node:path"
  * the cashier decided so". The catalogue price has to travel with the sale.
  */
 const POS = readFileSync(path.resolve(__dirname, "page.tsx"), "utf8")
+
+/** The body of one `const <name> = useCallback(` up to the next declaration. */
+function sliceFn(src: string, start: string): string {
+  const from = src.indexOf(start)
+  const next = src.indexOf("\n  const ", from + start.length)
+  return src.slice(from, next === -1 ? undefined : next)
+}
 const CART = readFileSync(
   path.resolve(__dirname, "../../../hooks/use-pos-carts.ts"),
   "utf8",
@@ -24,18 +31,16 @@ describe("editing a line total", () => {
   })
 
   it("holds the quantity — editing money must not change how many", () => {
-    const fn = CART.slice(
-      CART.indexOf("const setLineTotal"),
-      CART.indexOf("const setQuantity"),
-    )
+    // Bound the slice by the NEXT function, whatever it is — otherwise this
+    // test silently starts reading unrelated code the moment one is inserted.
+    const fn = sliceFn(CART, "const setLineTotal")
     expect(fn).not.toContain("quantity:")
   })
 
   it("keeps basePrice untouched — it is the evidence of the override", () => {
-    const fn = CART.slice(
-      CART.indexOf("const setLineTotal"),
-      CART.indexOf("const setQuantity"),
-    )
+    // Bound the slice by the NEXT function, whatever it is — otherwise this
+    // test silently starts reading unrelated code the moment one is inserted.
+    const fn = sliceFn(CART, "const setLineTotal")
     expect(fn).not.toContain("basePrice:")
   })
 })

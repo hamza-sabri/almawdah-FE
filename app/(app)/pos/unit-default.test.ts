@@ -47,7 +47,9 @@ describe("the POS defaults to a single piece", () => {
     )
     // It must patch the line in place — not remove and re-add, which would
     // reset the quantity to 1 and lose the cashier's work.
-    const fn = hook.slice(hook.indexOf("const setLineUnit"))
+    const from = hook.indexOf("const setLineUnit")
+    const next = hook.indexOf("\n  const ", from + 20)
+    const fn = hook.slice(from, next)
     expect(fn).toContain("l.key === key")
     expect(fn).not.toContain("quantity: 1")
   })

@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { BrandingSection } from "@/components/settings/branding-section"
 import { StaffSection } from "@/components/settings/staff-section"
 import { PlanLockedSection } from "@/components/settings/plan-locked-section"
+import { PrintSection } from "@/components/settings/print-section"
 import { useModules, hasModule, useIsOwner } from "@/lib/modules"
 import {
   SYNC_MODES,
@@ -92,6 +93,10 @@ export default function SettingsPage() {
             description="أضِف حسابات الموظفين وتحكّم بصلاحياتهم"
           />
         ))}
+
+      {/* Printing. Also in the POS's printer dialog, but that is only reachable
+          from the till — the owner sets the shop up from here. */}
+      <PrintSection />
 
       {/* Sync */}
       {SYNC_CONTROLS_ENABLED ? (

@@ -27,6 +27,18 @@ export type PrintSettings = {
   autoPrint: boolean
   /** Show the sale number as a scannable barcode at the foot of the receipt. */
   receiptBarcode: boolean
+  /**
+   * What "print" does at this counter.
+   *
+   *   "print"    → send it to the printer (Chrome must be launched with
+   *                --kiosk-printing, or the OS dialog appears — see
+   *                docs/PRINTING.md)
+   *   "download" → save the receipt as a file instead, no dialog ever
+   *
+   * A browser cannot ask the OS whether a printer exists, so a till with no
+   * printer says so HERE, once, instead of the app guessing wrong every sale.
+   */
+  deliver: "print" | "download"
 }
 
 const KEY = "pharma_print_settings_v1"
@@ -37,12 +49,16 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   phone: "",
   address: "",
   logoDataUrl: "",
-  footer: "شكراً لزيارتكم 🌿 سلامتكم تهمّنا",
+  // Not printed any more — the space under the total belongs to the barcode,
+  // which is what the owner scans to pull a sale back up. The key stays so
+  // settings saved by an older build still parse.
+  footer: "",
   paper: "80",
   // Off by default — receipts print only when the cashier explicitly asks
   // (reprint from the sale, or turns this on).
   autoPrint: false,
   receiptBarcode: true,
+  deliver: "print",
 }
 
 export function loadPrintSettings(): PrintSettings {

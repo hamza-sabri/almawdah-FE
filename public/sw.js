@@ -113,9 +113,21 @@ self.addEventListener("install", (event) => {
       if (!(await nav.match(ESSENTIAL_ROUTE))) {
         throw new Error("precache failed: /pos unavailable, keeping old worker")
       }
-      await self.skipWaiting()
+      // NO skipWaiting() here on purpose. Taking over immediately reloaded the
+      // page the moment a deploy landed — potentially mid-sale, with a
+      // customer at the counter. The new worker now waits until the cashier
+      // taps "يوجد تحديث جديد" (components/offline/update-prompt.tsx), which
+      // posts SKIP_WAITING below.
+      //
+      // First install is different: there is no controller to displace and
+      // nothing on screen to interrupt, so take over at once.
+      if (!self.registration.active) await self.skipWaiting()
     })(),
   )
+})
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting()
 })
 
 self.addEventListener("activate", (event) => {

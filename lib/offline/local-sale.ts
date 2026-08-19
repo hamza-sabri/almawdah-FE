@@ -19,7 +19,20 @@ export function isLocalSale(id: number | null | undefined): boolean {
   return typeof id === "number" && id < 0
 }
 
-/** What to show where a receipt number would go. */
-export function saleNumberLabel(id: number): string {
-  return isLocalSale(id) ? `بيع محلي — ${LOCAL_SALE_LABEL}` : `بيع رقم ${id}`
+/**
+ * What to show where a receipt number would go.
+ *
+ * Prefer the receipt code — that is the number printed on the paper the
+ * customer is holding, and the one the owner scans. The server id is a
+ * fallback for sales recorded before receipt codes existed.
+ */
+export function saleNumberLabel(
+  id: number,
+  receiptCode?: string | null,
+): string {
+  if (isLocalSale(id))
+    return receiptCode
+      ? `فاتورة ${receiptCode} — ${LOCAL_SALE_LABEL}`
+      : `بيع محلي — ${LOCAL_SALE_LABEL}`
+  return receiptCode ? `فاتورة ${receiptCode}` : `بيع رقم ${id}`
 }

@@ -22,8 +22,17 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-/** Floating ink rail — the app's signature dark surface. Collapses to icons-only
- *  by default (small screens) and re-collapses whenever the route changes. */
+const RAIL_KEY = "mawadda_sidebar_collapsed"
+/** Below this the rail would eat a phone's screen, so it starts as icons. */
+const NARROW_PX = 1024
+
+/** Floating ink rail — the app's signature dark surface.
+ *
+ *  Open by default. It used to start collapsed AND re-collapse on every
+ *  navigation, so the labels were never on screen for more than a moment and
+ *  the owner had to learn eight icons. Now the choice is the cashier's: the
+ *  toggle is remembered per device, and only a narrow screen (a phone) starts
+ *  collapsed on a first visit. */
 export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
@@ -31,12 +40,35 @@ export function AppSidebar() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [exporting, setExporting] = useState(false)
-  // Collapsed (icons only) by default; expand is temporary — any navigation
-  // re-collapses it so the rail stays out of the way on small screens.
-  const [collapsed, setCollapsed] = useState(true)
+  // Expanded is the server-rendered default, so there is no hydration
+  // mismatch; the stored preference (or a narrow screen) is applied straight
+  // after mount. Navigation no longer touches it — closing the rail is the
+  // cashier's decision, and it sticks.
+  const [collapsed, setCollapsed] = useState(false)
   useEffect(() => {
-    setCollapsed(true)
-  }, [pathname])
+    try {
+      const saved = window.localStorage.getItem(RAIL_KEY)
+      if (saved === "1" || saved === "0") {
+        setCollapsed(saved === "1")
+        return
+      }
+    } catch {
+      /* private mode — fall through to the width rule */
+    }
+    if (window.innerWidth < NARROW_PX) setCollapsed(true)
+  }, [])
+
+  function toggleRail() {
+    setCollapsed((was) => {
+      const next = !was
+      try {
+        window.localStorage.setItem(RAIL_KEY, next ? "1" : "0")
+      } catch {
+        /* the rail still toggles, it just won't be remembered */
+      }
+      return next
+    })
+  }
 
   const isOwner = useIsOwner()
   // Every feature is shown; ones this account can't use are locked.
@@ -78,7 +110,7 @@ export function AppSidebar() {
           {collapsed ? <BrandMark className="size-8" /> : <BrandLockup tone="ink" />}
           <button
             type="button"
-            onClick={() => setCollapsed((c) => !c)}
+            onClick={toggleRail}
             aria-label={collapsed ? "توسيع الشريط" : "طيّ الشريط"}
             title={collapsed ? "توسيع" : "طيّ"}
             className="grid size-9 shrink-0 place-items-center rounded-xl text-white/55 transition hover:bg-white/10 hover:text-white"

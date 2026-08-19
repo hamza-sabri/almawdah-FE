@@ -96,6 +96,17 @@ const EXPIRY_OPTIONS = [
   { value: "none", label: "بدون تاريخ صلاحية" },
 ]
 
+// How a product is sold. 404 of the shop's 2,398 products carry a box unit,
+// and a box is priced differently from the pieces inside it — those are the
+// rows to check before a stocktake or a price change. The card already showed
+// a "١ أنواع" badge; this makes it searchable.
+const UNITS_OPTIONS = [
+  { value: "all", label: "الكل" },
+  { value: "pack", label: "له عبوة" },
+  { value: "variant", label: "له أنواع" },
+  { value: "plain", label: "قطعة فقط" },
+]
+
 function MedCard({
   med,
   onEdit,
@@ -276,6 +287,7 @@ function MedicationsPageInner() {
   const [stockState, setStockState] = useState(urlStockState)
   const [category, setCategory] = useState(urlCategory)
   const [expiry, setExpiry] = useState(searchParams.get("expiry") ?? "all")
+  const [units, setUnits] = useState(searchParams.get("units") ?? "all")
   const scope = useRef<HTMLDivElement>(null)
 
   // Category choices come from the (Redis-cached) stats endpoint.
@@ -295,6 +307,20 @@ function MedicationsPageInner() {
     ],
     [medStats, urlCategory],
   )
+
+  // Show how many rows each choice holds, so the owner knows the size of the
+  // job before he opens it. The backend may predate the field — then the
+  // labels stay bare rather than reading "له عبوة (0)".
+  const unitsOptions = useMemo(() => {
+    const u = medStats?.units
+    const n = (v?: number) => (typeof v === "number" ? ` (${formatNumber(v)})` : "")
+    return [
+      { value: "all", label: UNITS_OPTIONS[0].label },
+      { value: "pack", label: `${UNITS_OPTIONS[1].label}${n(u?.pack)}` },
+      { value: "variant", label: `${UNITS_OPTIONS[2].label}${n(u?.variant)}` },
+      { value: "plain", label: `${UNITS_OPTIONS[3].label}${n(u?.plain)}` },
+    ]
+  }, [medStats])
 
   // A scan from anywhere lands here as ?q=<barcode>; the stats page links in
   // with ?stock_state= / ?category= to show a filtered breakdown.
@@ -344,9 +370,10 @@ function MedicationsPageInner() {
       stock_state: stockState === "all" ? undefined : stockState,
       category: category || undefined,
       expiry: expiry === "all" ? undefined : expiry,
+      units: units === "all" ? undefined : units,
       page_size: 24,
     }),
-    [search, ordering, stockState, category, expiry],
+    [search, ordering, stockState, category, expiry, units],
   )
 
   const {
@@ -366,6 +393,7 @@ function MedicationsPageInner() {
     ordering,
     stockState,
     category,
+    units,
   ])
 
   const [presetBarcode, setPresetBarcode] = useState("")
@@ -564,6 +592,12 @@ function MedicationsPageInner() {
                 onChange: setExpiry,
                 options: EXPIRY_OPTIONS,
               },
+              {
+                label: "الوحدات",
+                value: units,
+                onChange: setUnits,
+                options: unitsOptions,
+              },
             ]}
           />
           <SortMenu
@@ -699,7 +733,9 @@ function MedicationsPageInner() {
         </>
       )}
 
-      <Fab onClick={openAdd} label="إضافة منتج" />
+      {/* Also on desktop: on a long list the toolbar's "إضافة منتج" scrolls
+          away, and this is the page the owner adds things from all day. */}
+      <Fab onClick={openAdd} label="إضافة منتج" always />
       <MedicationForm
         open={formOpen}
         onOpenChange={setFormOpen}

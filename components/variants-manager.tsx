@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { sanitizeQtyInput } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
@@ -41,6 +42,8 @@ type Combo = {
   attributes: Record<string, string>
   label: string
   labelTouched?: boolean
+  /** Pieces inside, when this option is a BOX. "" = not a box. */
+  packSize: string
   price: string
   cost: string
   stock: string
@@ -84,6 +87,10 @@ function variantToCombo(v: Variant): Combo {
     id: v.id,
     attributes,
     label: v.label,
+    packSize:
+      (v as { pack_size?: string | number | null }).pack_size != null
+        ? String((v as { pack_size?: string | number }).pack_size)
+        : "",
     price: v.price ?? "",
     cost: v.cost ?? "",
     stock: v.stock ?? "0",
@@ -329,6 +336,7 @@ export function VariantsManager({
           key: `k:${k}`,
           attributes,
           label: autoLabel(attributes, activeOrder),
+          packSize: "",
           price: medicationPrice || "",
           cost: "",
           stock: "0",
@@ -371,6 +379,7 @@ export function VariantsManager({
         key: `manual:${cs.length}:${cs.reduce((n, c) => n + c.label.length, 0)}`,
         attributes: {},
         label: "",
+        packSize: "",
         price: medicationPrice || "",
         cost: "",
         stock: "0",
@@ -422,6 +431,8 @@ export function VariantsManager({
           product: medicationId,
           label: combo.label.trim() || autoLabel(combo.attributes, order),
           barcode: combo.barcode.trim(),
+          // "" → null: not a box, just an option (colour, flavour).
+          pack_size: combo.packSize.trim() || null,
           price: combo.price,
           cost: combo.cost.trim() || "0",
           stock: combo.stock.trim() || "0",
@@ -590,6 +601,55 @@ export function VariantsManager({
                           className="h-9 text-center"
                         />
                       </div>
+                    </div>
+                    {/* Box size — the number that was previously only ever
+                        written into the label text ("عبوة ×24"), so the app
+                        could show a box but not price it or count it. Typing
+                        it fills the box price with piece × contents, which is
+                        the default the owner expects; he can then discount it,
+                        which is usually the point of selling a box. */}
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-xs">
+                        عدد القطع داخل العبوة{" "}
+                        <span className="text-muted-foreground">(اتركه فارغاً إن لم تكن عبوة)</span>
+                      </Label>
+                      <Input
+                        value={combo.packSize}
+                        onChange={(e) => {
+                          const packSize = sanitizeQtyInput(e.target.value)
+                          const n = parseFloat(packSize)
+                          const base = parseFloat(medicationPrice || "0")
+                          patchCombo(i, {
+                            packSize,
+                            dirty: true,
+                            // Only auto-fill while the price still matches the
+                            // old suggestion — never overwrite a price the
+                            // owner typed himself.
+                            ...(isFinite(n) && n > 1 && isFinite(base)
+                              ? { price: (base * n).toFixed(2) }
+                              : {}),
+                          })
+                        }}
+                        inputMode="decimal"
+                        dir="ltr"
+                        placeholder="مثال: ٢٤"
+                        className="h-9 text-center"
+                      />
+                      {(() => {
+                        const n = parseFloat(combo.packSize)
+                        const base = parseFloat(medicationPrice || "0")
+                        if (!isFinite(n) || n <= 1 || !isFinite(base)) return null
+                        const suggested = base * n
+                        const actual = parseFloat(combo.price || "0")
+                        if (!isFinite(actual) || Math.abs(actual - suggested) < 0.005)
+                          return null
+                        return (
+                          <p className="text-[11px] text-muted-foreground">
+                            السعر المقترح {suggested.toFixed(2)} ₪ — أنت تبيعها بـ{" "}
+                            {actual.toFixed(2)} ₪
+                          </p>
+                        )
+                      })()}
                     </div>
                     <div className="flex flex-col gap-1">
                       <Label className="text-xs">الباركود</Label>

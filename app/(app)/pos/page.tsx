@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import {
   ChartColumn,
   ChevronDown,
+  Hand,
   Layers,
   LayoutGrid,
   Loader2,
@@ -40,13 +41,21 @@ import { useMe, displayName } from "@/hooks/use-me"
 import { submitSale } from "@/lib/offline/submit-sale"
 import { clearOfflineCaches } from "@/lib/offline/catalog-cache"
 import type { QueuedSale } from "@/lib/offline/queue"
-import { printReceipt, type ReceiptData } from "@/lib/print/receipt"
-import { loadPrintSettings } from "@/lib/print/settings"
+import { type ReceiptData } from "@/lib/print/receipt"
+import { deliverReceipt } from "@/lib/print/deliver"
+import { loadPrintSettings, type PrintSettings } from "@/lib/print/settings"
 import { PrintSettingsDialog } from "@/components/print/print-settings-dialog"
 import { PrintReceiptDialog } from "@/components/print/print-receipt-dialog"
 import { useInfiniteList } from "@/hooks/use-infinite-list"
 import { usePosCatalog } from "@/hooks/use-pos-catalog"
 import { useGlobalScanner } from "@/hooks/use-global-scanner"
+import {
+  QuickItemsPanel,
+  isQuickItem,
+} from "@/components/pos/quick-items-panel"
+import { useScanAlert } from "@/components/pos/scan-alert"
+import { TopupButtons } from "@/components/pos/topup-buttons"
+import { ManualLineRow } from "@/components/pos/manual-line-row"
 import { useCustomersCatalog } from "@/hooks/use-customers-catalog"
 import { useDebounced } from "@/hooks/use-debounced"
 import {
@@ -99,13 +108,86 @@ type SaleSnapshot = {
   isReturn: boolean
   paymentMethod: "cash" | "debt"
   customerName?: string
+  /** Stable per checkout — also used to key this sale's single toast. */
+  receiptCode?: string
 }
 
-type CheckoutInput = { body: SalePayload; snapshot: SaleSnapshot }
+type CheckoutInput = {
+  body: SalePayload
+  snapshot: SaleSnapshot
+  /** Print even if auto-print is off — the printer button asked for it. */
+  forcePrint?: boolean
+}
+
+/**
+ * Print a receipt, and say something useful when the device can't.
+ *
+ * A browser cannot ask the OS whether a printer exists, so "no printer found"
+ * is not a thing we can detect up front. What we can detect is a device with
+ * no print pipeline at all — and in that case the customer is still standing
+ * at the counter, so we hand the cashier the receipt as a file and tell her
+ * where it went instead of failing silently.
+ */
+/**
+ * Print, then fold the result into the sale's OWN toast.
+ *
+ * A checkout used to raise two: "تم البيع — ₪163.00" and, a beat later, a
+ * second one about the receipt. Two stacked toasts for one action read as two
+ * things having happened, and the cashier has to parse both while a customer
+ * waits. Sonner updates a toast in place when given the same id, so the sale
+ * announces itself immediately (that is the part that must never be delayed)
+ * and the receipt's fate is written into the same box when it is known.
+ */
+function printAndAnnounce(
+  id: string,
+  headline: string,
+  kind: "success" | "warning",
+  data: ReceiptData,
+  pharmacyName: string,
+  settings: PrintSettings,
+  logoUrl: string,
+) {
+  void deliverReceipt(data, pharmacyName, settings, logoUrl).then((r) => {
+    const open = r.fileUrl
+      ? { label: "عرض", onClick: () => window.open(r.fileUrl!, "_blank") }
+      : undefined
+    const show = kind === "warning" ? toast.warning : toast.success
+
+    switch (r.outcome) {
+      // Paper came out. Short — the receipt in the customer's hand is the
+      // real feedback, the toast is just confirming the sale.
+      case "agent":
+      case "printed":
+        show(headline, { id, description: "طُبعت الفاتورة", duration: 3500 })
+        return
+      // Expected: this counter is set to download.
+      case "downloaded":
+        show(headline, {
+          id,
+          description: "نُزّلت الفاتورة كملف",
+          action: open,
+          duration: 5000,
+        })
+        return
+      // Not expected. Longer, because there is something to read and a file
+      // to open — but not so long it sits over the next customer.
+      default:
+        toast.warning(headline, {
+          id,
+          description: r.detail
+            ? `لا توجد طابعة — نُزّلت الفاتورة (${r.detail})`
+            : "لا توجد طابعة — نُزّلت الفاتورة",
+          action: open,
+          duration: 7000,
+        })
+    }
+  })
+}
 
 function receiptFromSale(sale: Sale, cashierName: string): ReceiptData {
   return {
     saleId: sale.id,
+    receiptCode: sale.receipt_code,
     items: sale.items.map((it) => ({
       name: saleItemName(it),
       quantity: it.quantity,
@@ -127,8 +209,14 @@ function receiptFromQueued(
   queued: QueuedSale,
   cashierName: string,
 ): ReceiptData {
+  // The receipt number was minted on the till before the POST, so an offline
+  // receipt carries the SAME barcode the sale will have once it syncs. It used
+  // to print "مؤقت <uuid>" and no barcode at all, which meant the one receipt
+  // most likely to be queried later was the one that couldn't be looked up.
+  const receiptCode = queued.payload.receipt_code
   return {
-    saleId: `مؤقت ${queued.clientUuid.slice(0, 6)}`,
+    saleId: receiptCode || `مؤقت ${queued.clientUuid.slice(0, 6)}`,
+    receiptCode,
     items: snap.items.map((i) => ({
       name: i.name,
       quantity: i.quantity,
@@ -175,7 +263,7 @@ function useCheckout(pos: Pos, onDone?: () => void) {
   const pharmacyLogo = me?.pharmacy_logo || ""
 
   return useMutation({
-    mutationFn: async ({ body, snapshot }: CheckoutInput) => {
+    mutationFn: async ({ body, snapshot, forcePrint }: CheckoutInput) => {
       const key = body.client_uuid ?? ""
       if (key && inFlightCarts.has(key)) {
         throw new Error("جارٍ إتمام البيع — انتظر لحظة")
@@ -190,20 +278,31 @@ function useCheckout(pos: Pos, onDone?: () => void) {
           customerName: snapshot.customerName,
           cashierName,
         })
-        return { res, snapshot }
+        return { res, snapshot, forcePrint }
       } finally {
         if (key) inFlightCarts.delete(key)
       }
     },
-    onSuccess: ({ res, snapshot }) => {
+    onSuccess: ({ res, snapshot, forcePrint }) => {
       const settings = loadPrintSettings()
+      const wantPrint = forcePrint || settings.autoPrint
+      // One toast per checkout, keyed so the printing result can be written
+      // into it rather than stacked on top of it.
+      const toastId = `sale-${snapshot.receiptCode || Date.now()}`
       if (res.status === "synced") {
         const sale = res.sale
-        toast.success(
-          `${sale.is_return ? "تم الإرجاع" : "تم البيع"} — ${formatMoney(sale.discounted_total)}`,
-        )
-        if (settings.autoPrint) {
-          printReceipt(receiptFromSale(sale, cashierName), pharmacyName, settings, pharmacyLogo)
+        const headline = `${sale.is_return ? "تم الإرجاع" : "تم البيع"} — ${formatMoney(sale.discounted_total)}`
+        toast.success(headline, { id: toastId, duration: 3500 })
+        if (wantPrint) {
+          printAndAnnounce(
+            toastId,
+            headline,
+            "success",
+            receiptFromSale(sale, cashierName),
+            pharmacyName,
+            settings,
+            pharmacyLogo,
+          )
         }
         qc.invalidateQueries({ queryKey: ["products"] })
         qc.invalidateQueries({ queryKey: ["sales"] })
@@ -212,15 +311,18 @@ function useCheckout(pos: Pos, onDone?: () => void) {
         qc.invalidateQueries({ queryKey: ["customers"] })
         qc.invalidateQueries({ queryKey: ["customers-quick"] })
       } else {
-        toast.warning("لا يوجد اتصال — حُفظت الفاتورة وستُزامن تلقائياً عند عودة الشبكة", {
-          duration: 5000,
-        })
-        if (settings.autoPrint) {
-          // No real sale number yet → suppress the (misleading) barcode.
-          printReceipt(
+        const headline = "لا يوجد اتصال — حُفظت الفاتورة وستُزامن تلقائياً"
+        toast.warning(headline, { id: toastId, duration: 4000 })
+        if (wantPrint) {
+          // The barcode IS printed here: the number came from the till, not
+          // the server, so it is already final.
+          printAndAnnounce(
+            toastId,
+            headline,
+            "warning",
             receiptFromQueued(snapshot, res.queued, cashierName),
             pharmacyName,
-            { ...settings, receiptBarcode: false },
+            settings,
             pharmacyLogo,
           )
         }
@@ -285,12 +387,19 @@ function buildPayload(pos: Pos): CheckoutInput | null {
     // Stable for this cart across every attempt — see Cart.saleUuid. Without
     // it, a retry becomes a second sale instead of being collapsed server-side.
     client_uuid: pos.ensureSaleUuid(),
+    // Printed as the barcode. Minted here, not server-side: an offline sale
+    // prints before the server knows it exists, and that paper has to stay
+    // findable.
+    receipt_code: pos.ensureReceiptCode(),
     customer: isDebt ? (active.customerId ?? undefined) : undefined,
     payment_method: paymentMethod,
     is_return: active.isReturn || undefined,
     items: active.lines.map((l) => ({
       product: l.medicationId ?? undefined,
       variant: l.variantId ?? undefined,
+      // Required by the API for a free-text line (top-up): with no product id
+      // the name IS the item. Harmless on catalogue lines.
+      medication_name: l.medicationId == null ? l.name : undefined,
       quantity: l.quantity,
       unit_price: l.unitPrice,
       // Only when it actually differs — the backend nulls a no-op override
@@ -306,6 +415,7 @@ function buildPayload(pos: Pos): CheckoutInput | null {
         : undefined,
   }
   const snapshot: SaleSnapshot = {
+    receiptCode: body.receipt_code,
     items: active.lines.map((l) => ({
       name: l.variantLabel ? `${l.name} — ${l.variantLabel}` : l.name,
       quantity: l.quantity,
@@ -582,6 +692,11 @@ function CheckoutButtons({
   pos: Pos
   checkout: ReturnType<typeof useCheckout>
 }) {
+  const { user } = useMe()
+  const cashierName = displayName(user)
+  const me = user as { pharmacy_name?: string; pharmacy_logo?: string } | undefined
+  const pharmacyName = me?.pharmacy_name?.trim() || "المتجر"
+  const pharmacyLogo = me?.pharmacy_logo || ""
   const active = pos.active
   // Debt sales can't be completed without a customer.
   const needsCustomer =
@@ -617,6 +732,24 @@ function CheckoutButtons({
         )}
         {active?.isReturn ? "إتمام الإرجاع" : "إتمام البيع"}
       </button>
+      {/* Print the cart BEFORE it is a sale — the customer asks "how much?"
+          and wants it on paper, or the cashier wants to check the list against
+          the trolley. Deliberately does not complete or alter the sale. */}
+      {active && active.lines.length > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            const input = buildPayload(pos)
+            if (input) checkout.mutate({ ...input, forcePrint: true })
+          }}
+          disabled={checkout.isPending || needsCustomer}
+          title="إتمام البيع وطباعة الفاتورة"
+          aria-label="إتمام البيع وطباعة الفاتورة"
+          className="grid size-13 shrink-0 place-items-center rounded-2xl border border-border bg-card text-muted-foreground transition hover:bg-muted hover:text-foreground active:scale-95 disabled:opacity-50"
+        >
+          <Printer className="size-5" />
+        </button>
+      )}
       {active && active.lines.length > 0 && (
         <button
           type="button"
@@ -1193,6 +1326,17 @@ function TableMode({
       .slice(0, 8)
   }, [query, catalog])
 
+  // Remembered per device: a shop that sells loose goods wants the panel open
+  // all day; one that doesn't never opens it.
+  const [quickOpen, setQuickOpen] = useState(false)
+  useEffect(() => {
+    setQuickOpen(window.localStorage.getItem("mawadda_pos_quick_open") === "1")
+  }, [])
+  const quickCount = useMemo(
+    () => (catalog ?? []).filter(isQuickItem).length,
+    [catalog],
+  )
+
   if (!active) return null
   const lines = [...active.lines].reverse()
 
@@ -1212,15 +1356,52 @@ function TableMode({
           وضع الإرجاع — المخزون سيُعاد والمبلغ سيُخصم من المبيعات
         </div>
       )}
-      <SearchInput
-        value={searchRaw}
-        onChange={setSearchRaw}
-        placeholder="امسح الباركود أو ابحث بالاسم…"
-        scan
-        onScan={onScanCode}
-        scanContinuous
-        onEnter={onWedgeEnter}
-      />
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <SearchInput
+            value={searchRaw}
+            onChange={setSearchRaw}
+            placeholder="امسح الباركود أو ابحث بالاسم…"
+            scan
+            onScan={onScanCode}
+            scanContinuous
+            onEnter={onWedgeEnter}
+          />
+        </div>
+        <TopupButtons
+          onAdd={(name, amount) => {
+            pos.addFreeItem(name, amount)
+            playBeep(true)
+          }}
+        />
+        {quickCount > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              const next = !quickOpen
+              setQuickOpen(next)
+              window.localStorage.setItem(
+                "mawadda_pos_quick_open",
+                next ? "1" : "0",
+              )
+            }}
+            aria-pressed={quickOpen}
+            title="أصناف بدون باركود — اضغط لإضافتها بلمسة"
+            className={cn(
+              "flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition",
+              quickOpen
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:bg-muted/60",
+            )}
+          >
+            <Hand className="size-4" />
+            <span className="hidden sm:inline">بدون باركود</span>
+            <span className="rounded-full bg-muted px-1.5 text-[10px] tabular-nums">
+              {quickCount}
+            </span>
+          </button>
+        )}
+      </div>
 
       {/* Filtered catalogue matches — tap to add to the cart */}
       {query && (
@@ -1260,10 +1441,13 @@ function TableMode({
         </div>
       )}
 
+      <div className="flex min-h-0 flex-1 gap-3">
       <div
         data-slot="card"
         className={cn(
-          "min-h-0 flex-1 overflow-y-auto rounded-3xl border bg-card",
+          "min-h-0 overflow-y-auto rounded-3xl border bg-card",
+          // 2/3 for the cart, 1/3 for the panel — only while it is open.
+          quickOpen ? "w-2/3" : "w-full",
           "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card",
           active.isReturn && "return-glow",
         )}
@@ -1361,6 +1545,24 @@ function TableMode({
         </Table>
       </div>
 
+      {quickOpen && (
+        <div className="animate-in fade-in slide-in-from-left-2 w-1/3 min-w-0 duration-150">
+          <QuickItemsPanel catalog={catalog} onPick={onPick} />
+        </div>
+      )}
+      </div>
+
+      {/* Sell something the catalogue does not have — a one-off item, a
+          service, a deposit — without inventing a product row for it.
+          OUTSIDE the cart's scroll box: as a last row (and then as a sticky
+          tfoot) it slid out of reach as soon as the cart was longer than the
+          screen, because at some widths the page scrolls rather than the card.
+          Here it sits between the table and the payment buttons and never
+          moves. */}
+      <ManualLineRow
+        onAdd={(name, price, quantity) => pos.addFreeItem(name, price, quantity)}
+      />
+
       <div className="grid gap-3 lg:grid-cols-[1fr_360px]">
         <SaleControls pos={pos} />
         <div className="space-y-2">
@@ -1394,6 +1596,7 @@ export default function PosPage() {
   // the search box focused, and add the matched product straight to the cart
   // (falls back to filling the search box only when the code is ambiguous). A
   // bare Enter (nothing focused, no burst) completes the sale.
+  const { flashNotFound, scanAlertOverlay } = useScanAlert()
   const [qtySeed, setQtySeed] = useState<QtySeed>(null)
   // Clear the seed once the cart moves on, so re-adding the same line doesn't
   // resurrect a stale digit.
@@ -1609,6 +1812,7 @@ export default function PosPage() {
         return addMedOrPick(found, medVariants(found))
       }
       if (catalogReady) {
+        flashNotFound(code)
         return { ok: false, message: "غير موجود — لم تتم الإضافة" }
       }
       const r = await productsList({ search: code, page_size: 2 })
@@ -1617,6 +1821,7 @@ export default function PosPage() {
         return addMedOrPick(results[0], medVariants(results[0]))
       }
       if (results.length === 0) {
+        flashNotFound(code)
         return { ok: false, message: "غير موجود — لم تتم الإضافة" }
       }
     } catch {
@@ -1651,6 +1856,7 @@ export default function PosPage() {
       }
       if (results.length === 0) {
         playBeep(false)
+        flashNotFound(value)
         toast.error("لا توجد نتيجة لهذا الباركود")
         return
       }
@@ -1666,6 +1872,7 @@ export default function PosPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl">
+      {scanAlertOverlay}
       {/* Header strip */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>

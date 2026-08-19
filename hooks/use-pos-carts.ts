@@ -6,6 +6,7 @@ import { cartStateGet, cartStatePut } from "@/api/sales"
 import { cartsApi, convexAccountId, getConvex } from "@/lib/convex"
 import { toNumber } from "@/lib/format"
 import { uuid } from "@/lib/offline/queue"
+import { newReceiptCode } from "@/lib/receipt-code"
 
 /**
  * POS carts with parking: several sales can be open at once (a customer walks
@@ -60,6 +61,9 @@ export type Cart = {
    * sale is not.
    */
   saleUuid?: string
+  /** The number printed as a barcode on this cart's receipt. Minted with the
+   *  idempotency uuid so an offline receipt and the synced sale agree. */
+  receiptCode?: string
   customerId: number | null
   customerName: string
   payment: "cash" | "debt"
@@ -363,6 +367,24 @@ export function usePosCarts() {
     return minted
   }, [])
 
+  /**
+   * The receipt number for THIS cart — same contract as the uuid above: minted
+   * once, reused by every attempt. It has to be stable because the paper may
+   * already be in the customer's hand (an offline sale prints before it syncs)
+   * and a second attempt must not hand the server a different number.
+   */
+  const ensureReceiptCode = useCallback((): string => {
+    const cart = cartsRef.current.find((c) => c.id === activeIdRef.current)
+    if (cart?.receiptCode) return cart.receiptCode
+    const minted = newReceiptCode()
+    if (cart) {
+      setCarts((prev) =>
+        prev.map((c) => (c.id === cart.id ? { ...c, receiptCode: minted } : c)),
+      )
+    }
+    return minted
+  }, [])
+
   const addMedication = useCallback(
     (med: Product, variant?: CartVariant | null) => {
       const variantId = variant?.id ?? null
@@ -477,6 +499,45 @@ export function usePosCarts() {
     [patchActive],
   )
 
+  /**
+   * Add a FREE-TEXT line: a name and a price, with no catalogue product.
+   *
+   * Mobile top-up is the case — it has no barcode to scan and no stock to
+   * decrement, and creating a catalogue row per network per amount would be
+   * worse than useless. The sale API accepts a line with `medication_name` +
+   * `unit_price` instead of a product id, so these ring up, print and report
+   * exactly like anything else.
+   *
+   * Always a NEW line, never merged: two ₪10 top-ups are two cards, and the
+   * cashier needs to see both.
+   */
+  const addFreeItem = useCallback(
+    (name: string, unitPrice: number, quantity = 1) => {
+      const key = `f${Date.now()}_${(seq += 1)}`
+      // Guard the two values that reach the receipt. A blank name would print
+      // an empty line and a negative price would pay the customer.
+      const label = name.trim() || "صنف"
+      const price = Number.isFinite(unitPrice) ? Math.max(unitPrice, 0) : 0
+      const qty = Number.isFinite(quantity) && quantity > 0 ? quantity : 1
+      patchActive((c) => ({
+        lines: [
+          ...c.lines,
+          {
+            key,
+            medicationId: null,
+            variantId: null,
+            name: label,
+            unitPrice: price.toFixed(2),
+            basePrice: price.toFixed(2),
+            quantity: qty,
+          },
+        ],
+      }))
+      setLastAdded((p) => ({ key, tick: p.tick + 1 }))
+    },
+    [patchActive],
+  )
+
   const setQuantity = useCallback(
     (key: string, quantity: number) => {
       patchActive((c) => ({
@@ -564,7 +625,9 @@ export function usePosCarts() {
     setActiveId,
     patchActive,
     ensureSaleUuid,
+    ensureReceiptCode,
     addMedication,
+    addFreeItem,
     setQuantity,
     setLineUnit,
     setLinePrice,

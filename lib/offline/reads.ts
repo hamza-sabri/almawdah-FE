@@ -125,6 +125,10 @@ async function queuedAsSales(): Promise<Sale[]> {
       discounted_total: money(s.discountedTotal),
       debt: null,
       note: "",
+      // The number printed on the paper the customer walked out with. Minted
+      // on the till before the POST, so scanning it finds this row offline and
+      // the same row after it syncs.
+      receipt_code: s.payload.receipt_code,
       created_by_name: s.cashierName || "—",
       created_at: new Date(s.createdAt).toISOString(),
       updated_at: new Date(s.createdAt).toISOString(),
@@ -237,6 +241,7 @@ export async function localReadResponse<T>(url: string): Promise<T | null> {
     if (u.searchParams.get("expiry") || u.searchParams.get("manufacturer"))
       return null
     const search = (u.searchParams.get("search") || "").trim().toLowerCase()
+    const units = u.searchParams.get("units") || ""
     const barcode = (u.searchParams.get("barcode") || "").trim()
     const category = (u.searchParams.get("category") || "").trim()
     const stockState = u.searchParams.get("stock_state") || ""
@@ -259,6 +264,17 @@ export async function localReadResponse<T>(url: string): Promise<T | null> {
           codesOf(m).some((c) => c.includes(search)),
       )
     if (category) rows = rows.filter((m) => (m.category || "") === category)
+    // ?units= — the cached catalogue carries each variant's pack_size, so all
+    // three answers are exact offline rather than an unfiltered list under a
+    // filter chip.
+    if (units === "pack")
+      rows = rows.filter((m) =>
+        (m.variants ?? []).some((v) => Number(v.pack_size ?? 0) > 0),
+      )
+    else if (units === "variant")
+      rows = rows.filter((m) => (m.variants ?? []).length > 0)
+    else if (units === "plain")
+      rows = rows.filter((m) => (m.variants ?? []).length === 0)
     if (stockState === "out") rows = rows.filter((m) => Number(m.stock) <= 0)
     else if (stockState === "in") rows = rows.filter((m) => Number(m.stock) > 0)
     // 5 mirrors ProductViewSet.LOW_STOCK_MAX on the backend. If that ever
@@ -375,6 +391,18 @@ export async function localReadResponse<T>(url: string): Promise<T | null> {
     const local = await queuedAsSales()
     const prev = (await cached<{ results?: Sale[] }>(k))?.results ?? []
     let rows = [...local, ...prev]
+
+    // Scanning the barcode on a receipt is the one search that MUST work with
+    // no network: the sale most likely to be queried offline is the one just
+    // rung up offline, and it is sitting in the queue right here. Exact match,
+    // like the server — a partial code must not return "some sale, probably
+    // yours". Any other search term is a name/product lookup the mirror can't
+    // answer, so it refuses rather than showing an unfiltered list.
+    const term = (u.searchParams.get("search") || "").trim()
+    if (term) {
+      if (!/^[0-9]{12}$/.test(term)) return null
+      rows = rows.filter((s) => s.receipt_code === term)
+    }
 
     const payment = u.searchParams.get("payment_method")
     if (payment) rows = rows.filter((s) => s.payment_method === payment)
