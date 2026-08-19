@@ -30,7 +30,21 @@ ARG NEXT_PUBLIC_ROOT_DOMAIN=clinixa.cloud
 ENV NEXT_PUBLIC_ROOT_DOMAIN=$NEXT_PUBLIC_ROOT_DOMAIN
 
 # Convex (realtime cart sync) — public client URL, baked at build time.
-ARG NEXT_PUBLIC_CONVEX_URL=https://majestic-egret-857.convex.cloud
+#
+# DEFAULT EMPTY, on purpose. This used to default to one shared Convex
+# deployment, and because a Dockerfile ARG default applies whenever the
+# platform does not pass the argument, EVERY store built from this template
+# silently joined the same realtime database — while the deploy's build-args
+# list showed no Convex variable at all, so it read as "Convex is off".
+#
+# The cart document there is keyed by the account id alone, and account ids are
+# only unique inside ONE store's database: user 2 of one shop and user 2 of
+# another shared a document and watched each other's open baskets appear live.
+#
+# Realtime cart sync is a convenience. Two shops' tills sharing baskets is not
+# a convenience. So it stays off unless a deployment explicitly opts in with
+# its OWN Convex deployment URL.
+ARG NEXT_PUBLIC_CONVEX_URL=
 ENV NEXT_PUBLIC_CONVEX_URL=$NEXT_PUBLIC_CONVEX_URL
 
 # Error monitoring (Sentry) + session recordings (Microsoft Clarity).
