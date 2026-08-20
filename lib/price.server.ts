@@ -9,8 +9,9 @@ import "server-only"
  * on the server from the `?barcode=` in the request.
  */
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.clinixa.cloud"
+// One source for this deployment's API — never a per-file default, which is
+// how a missing build argument used to point one shop at another's data.
+import { API_BASE } from "@/lib/api-base"
 
 /** Only what a preview needs. Deliberately NOT the whole API response — see
  *  the note in `fetchSharedProduct`. */

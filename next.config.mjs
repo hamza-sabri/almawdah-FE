@@ -81,7 +81,9 @@ export default withSentryConfig(nextConfig, {
   // Which Sentry project the source maps upload to. Hardcoding it meant this
   // build shipped its maps to the PHARMACY's project. Env-driven, with this
   // deployment's own project as the default.
-  org: process.env.SENTRY_ORG || "broken-dudes",
+  // No default: a hardcoded org uploads THIS deployment's source maps to
+  // whatever account happens to be named here. Env or nothing.
+  org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT || "almawdah-frontend",
   // Quiet build logs; set SENTRY_AUTH_TOKEN in the deploy env to enable upload.
   silent: true,

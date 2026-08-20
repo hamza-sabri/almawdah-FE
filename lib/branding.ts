@@ -27,10 +27,10 @@ export const DEFAULT_ICON_192 = "/icons/icon-192.png"
 export const DEFAULT_ICON_512 = "/icons/icon-512.png"
 export const DEFAULT_ICON_MASKABLE = "/icons/icon-maskable-512.png"
 
-// Mirrors api/http.ts — kept separate so server code doesn't drag in the
-// client-only API layer (tokens/localStorage/demo mocks).
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://alrahmah.store.clinixa.cloud"
+// Kept out of api/http.ts so server code doesn't drag in the client-only API
+// layer (tokens/localStorage/demo mocks). The VALUE still comes from the one
+// place that resolves it — never a per-file default pointing at another shop.
+import { API_BASE } from "@/lib/api-base"
 
 /** The public branding JSON URL for a tenant, or null when there isn't one. */
 export function brandingUrl(slug = getPharmacySlug()): string | null {

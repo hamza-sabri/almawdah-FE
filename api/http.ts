@@ -12,8 +12,9 @@ import { canAutoDownload, isManualSyncing } from "@/lib/offline/sync-mode"
 import { cacheReadResponse, localReadResponse } from "@/lib/offline/reads"
 import { refreshOfflineCredentialTokens } from "@/lib/offline/credential"
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://alrahmah.store.clinixa.cloud"
+// Resolved in ONE place — see lib/api-base.ts for why there is no default.
+export { API_BASE } from "@/lib/api-base"
+import { API_BASE } from "@/lib/api-base"
 
 /** Pull a human message out of a DRF error body (detail or field errors). */
 function extractErrorMessage(detail: unknown, status: number): string {

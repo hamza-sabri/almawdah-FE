@@ -2,22 +2,30 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { Product } from "@/api/generated/model"
-import { cartStateGet, cartStatePut } from "@/api/sales"
-import { cartsApi, convexAccountId, getConvex } from "@/lib/convex"
+import { convexAccountId } from "@/lib/convex"
 import { toNumber } from "@/lib/format"
 import { uuid } from "@/lib/offline/queue"
 import { newReceiptCode } from "@/lib/receipt-code"
 
 /**
  * POS carts with parking: several sales can be open at once (a customer walks
- * in mid-sale → park the current cart, serve them, come back). Everything is
- * mirrored to localStorage AND synced per-account to the server, so a sale
- * started on one machine can be finished on another.
+ * in mid-sale → park the current cart, serve them, come back).
  *
- * Realtime: when Convex is configured (NEXT_PUBLIC_CONVEX_URL) every device
- * on the account subscribes to the cart document — scan an item on the phone
- * and it appears on the desktop instantly, no refresh. Without Convex the
- * old sync-on-load behaviour still works.
+ * CARTS DO NOT LEAVE THIS BROWSER. There is no server copy and no realtime
+ * subscription — localStorage, keyed per account, is the whole story.
+ *
+ * They used to sync: a per-user row on the API, plus a Convex document pushed
+ * live to every device. Both were correctly scoped in code and both leaked
+ * anyway — the Convex deployment URL was a Dockerfile default, so every shop
+ * built from this template joined ONE realtime database keyed by an account id
+ * that is only unique inside a single shop's own database. Two shops' tills
+ * showed each other's open baskets, and closed carts came back from copies
+ * nobody could see.
+ *
+ * A parked basket is worth very little. A till showing a basket the cashier
+ * did not create is worth a great deal of trouble. So the feature is gone
+ * rather than guarded: with nothing to write to and nothing to read from,
+ * there is no channel left for a cart to travel down.
  */
 
 export type CartLine = {
@@ -89,6 +97,19 @@ export type Cart = {
    *  edits it (tracked by `discountTouched`). */
   discounted: string
   discountTouched?: boolean
+  /**
+   * The pinned amount came from the sale being CORRECTED, not from the
+   * cashier typing it now.
+   *
+   * It has to survive an edit that changes nothing — reopening a ₪90-on-₪100
+   * invoice to fix a name must not silently re-charge the full ₪100. But it
+   * must NOT survive a change to the lines: a ₪10 amount agreed for one item
+   * is not the amount for that item plus eight more, and pinning it there
+   * charged ₪10 for ₪121 of goods with nothing on screen to say so.
+   */
+  discountFromOriginal?: boolean
+  /** Line sum when the correction was opened — how we know the lines moved. */
+  editingBaseTotal?: number
   lines: CartLine[]
 }
 
@@ -146,7 +167,7 @@ export function cartTotal(cart: Cart): number {
 }
 
 /**
- * A saved cart blob.
+ * A saved cart blob, in this browser's localStorage.
  *
  * `accountId` is stamped on every write and CHECKED on every read.
  *
@@ -159,7 +180,7 @@ export function cartTotal(cart: Cart): number {
  * makes the till able to refuse what is not its own, whichever layer went
  * wrong.
  */
-type RemoteState = {
+type SavedState = {
   carts?: Cart[]
   activeId?: string
   savedAt?: number
@@ -187,13 +208,6 @@ function isMineLocal(state: { accountId?: string } | null | undefined): boolean 
   return !id || id === convexAccountId()
 }
 
-function isMineRemote(state: { accountId?: string } | null | undefined): boolean {
-  const me = convexAccountId()
-  // "anon" means this device could not read its own token. It must never be
-  // treated as an identity that matches anything.
-  if (!me || me === "anon") return false
-  return state?.accountId === me
-}
 
 export function usePosCarts() {
   const [carts, setCarts] = useState<Cart[]>([])
@@ -205,14 +219,6 @@ export function usePosCarts() {
     tick: 0,
   })
   const hydrated = useRef(false)
-  // True once we've READ the server's copy. Until then we never WRITE to the
-  // server — otherwise the first-render placeholder cart (or a cosmetic
-  // change like the auto-filled discount) would clobber a real saved cart
-  // before we've even seen it, and it would re-appear on the next login.
-  const serverHydrated = useRef(false)
-  // Timestamp of the newest state this device has seen (local or remote) —
-  // used to ignore stale snapshots and our own echoes from the subscription.
-  const lastSavedAt = useRef(0)
 
   // Live mirrors so imperative actions (close/clear) can read current state
   // and push a definitive copy to the server without waiting for the effect.
@@ -221,61 +227,14 @@ export function usePosCarts() {
   const activeIdRef = useRef("")
   activeIdRef.current = activeId
 
-  /**
-   * Ids of correction carts THIS device opened, this session.
-   *
-   * The rescue below protects them from being wiped by an in-flight server
-   * snapshot. It must be a closed list, not "any cart that looks like an
-   * edit": a foreign edit cart arriving from somewhere else would otherwise be
-   * rescued on every sync and could never be cleared, so several strangers'
-   * corrections pile up on one till and none of them go away.
-   */
-  const myEditCarts = useRef<Set<string>>(new Set())
 
-  const applyRemote = useCallback((remote: RemoteState) => {
-    // Checked HERE too, not only at each call site: this is the one function
-    // that can replace what is on the till, so it is the one place the rule
-    // must not be possible to forget.
-    if (!isMineRemote(remote)) return
-    if (!Array.isArray(remote.carts) || remote.carts.length === 0) return
-    skipPush.current = true // don't echo the received state back
-    const incoming = remote.carts
-
-    // A CORRECTION opened on this device moments ago cannot be in the remote
-    // snapshot — that was fetched before the cashier tapped the pencil.
-    // Replacing the array wholesale would delete it while she was looking at
-    // it, and the sale would simply never open.
-    //
-    // ONLY corrections are rescued, deliberately: an ordinary cart missing
-    // from the remote copy usually means another till closed it, and bringing
-    // those back would undo that.
-    const rescued = cartsRef.current.filter(
-      (c) =>
-        c.editingSaleId != null &&
-        myEditCarts.current.has(c.id) &&
-        !incoming.some((r) => r.id === c.id),
-    )
-    setCarts(rescued.length > 0 ? [...incoming, ...rescued] : incoming)
-    setActiveId((cur) =>
-      // Mid-edit keeps the focus.
-      rescued.some((c) => c.id === cur)
-        ? cur
-        : incoming.some((c) => c.id === cur)
-          ? cur
-          : incoming.some((c) => c.id === remote.activeId)
-            ? remote.activeId!
-            : incoming[0].id,
-    )
-  }, [])
-
-  // Hydrate: localStorage first (instant), then the server copy wins when
-  // it's newer (sale started on another machine).
+  // Hydrate from THIS browser, and nowhere else.
   useEffect(() => {
     let localSavedAt = 0
     try {
       const raw = window.localStorage.getItem(storageKey())
       if (raw) {
-        const data = JSON.parse(raw) as RemoteState & {
+        const data = JSON.parse(raw) as SavedState & {
           carts: Cart[]
           activeId: string
         }
@@ -285,8 +244,7 @@ export function usePosCarts() {
           data.carts.length > 0
         ) {
           localSavedAt = data.savedAt ?? 0
-          lastSavedAt.current = localSavedAt
-          skipPush.current = true // hydration isn't a user change — no push
+          skipPush.current = true // hydration isn't a user change — no write
           setCarts(data.carts)
           setActiveId(
             data.carts.some((c) => c.id === data.activeId)
@@ -300,157 +258,33 @@ export function usePosCarts() {
     }
     if (!localSavedAt) {
       const c = freshCart()
-      skipPush.current = true // an empty starter cart must never clobber the server
       setCarts([c])
       setActiveId(c.id)
     }
     hydrated.current = true
+  }, [])
 
-    // Safety: if the server never answers, unblock writes after 5s so the
-    // cashier isn't stuck unable to save.
-    const unblock = window.setTimeout(() => {
-      serverHydrated.current = true
-    }, 5000)
-
-    void cartStateGet()
-      .then((res) => {
-        const remote = res.data.data as unknown as RemoteState
-        // Somebody else's carts. Whatever handed them to us — a shared cache,
-        // a stale row, a proxy — the till must not open them.
-        if (!isMineRemote(remote)) return
-        if (remote && (remote.savedAt ?? 0) > lastSavedAt.current) {
-          lastSavedAt.current = remote.savedAt ?? 0
-          applyRemote(remote)
-        }
-      })
-      .catch(() => {
-        /* offline — local copy is fine */
-      })
-      .finally(() => {
-        window.clearTimeout(unblock)
-        serverHydrated.current = true
-      })
-  }, [applyRemote])
-
-  // Realtime: live subscription to this account's cart document. Convex
-  // pushes every change — add an item on one device, it renders on all the
-  // others within a heartbeat.
-  useEffect(() => {
-    const convex = getConvex()
-    if (!convex) return
-    const unsubscribe = convex.onUpdate(
-      cartsApi.get,
-      { accountId: convexAccountId() },
-      (doc) => {
-        const row = doc as { data?: RemoteState; savedAt?: number } | null
-        if (!row?.data) return
-        // Before lastSavedAt is touched: letting a foreign blob move that
-        // watermark would ALSO block the next legitimate update from this
-        // account, turning a leak into a silent desync.
-        if (!isMineRemote(row.data)) return
-        const savedAt = row.savedAt ?? row.data.savedAt ?? 0
-        if (savedAt <= lastSavedAt.current) return // stale or our own echo
-        lastSavedAt.current = savedAt
-        applyRemote(row.data)
-      },
-      () => {
-        /* subscription error — polling-free fallback still applies on load */
-      },
-    )
-    return unsubscribe
-  }, [applyRemote])
-
-  // Persist on every change: localStorage immediately, Convex almost
-  // immediately (that's the realtime broadcast), Django/Postgres debounced
-  // as the durable copy.
-  const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const livePushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Persist to THIS browser, and nowhere else.
   const skipPush = useRef(false)
   useEffect(() => {
     if (!hydrated.current || carts.length === 0) return
     if (skipPush.current) {
-      // State came from hydration or another device — mirror it locally with
-      // its TRUE timestamp (re-stamping would make stale data look fresh and
-      // block newer server copies from ever applying).
       skipPush.current = false
-      try {
-        window.localStorage.setItem(
-          storageKey(),
-          JSON.stringify({
-            carts: persistable(carts),
-            activeId,
-            savedAt: lastSavedAt.current,
-            accountId: convexAccountId(),
-          }),
-        )
-      } catch {
-        /* storage full — carts still live in memory */
-      }
       return
-    }
-    if (!serverHydrated.current) {
-      // A local change before we've read the server copy — mirror locally but
-      // do NOT write to the server yet, and keep the current savedAt so an
-      // incoming server copy can still win.
-      try {
-        window.localStorage.setItem(
-          storageKey(),
-          JSON.stringify({
-            carts: persistable(carts),
-            activeId,
-            savedAt: lastSavedAt.current,
-            accountId: convexAccountId(),
-          }),
-        )
-      } catch {
-        /* storage full */
-      }
-      return
-    }
-    const savedAt = Date.now()
-    const keep = persistable(carts)
-    // Every cart on screen is a correction, so there is nothing to save. Do
-    // NOT write an empty list to the server: another till may have a genuinely
-    // parked basket, and an empty list is last-write-wins over it.
-    if (keep.length === 0) return
-    const payload = {
-      carts: keep,
-      activeId,
-      savedAt,
-      accountId: convexAccountId(),
     }
     try {
-      window.localStorage.setItem(storageKey(), JSON.stringify(payload))
-    } catch {
-      /* storage full — carts still live in memory */
-    }
-    lastSavedAt.current = savedAt
-    const convex = getConvex()
-    if (convex) {
-      if (livePushTimer.current) clearTimeout(livePushTimer.current)
-      livePushTimer.current = setTimeout(() => {
-        void convex
-          .mutation(cartsApi.put, {
-            accountId: convexAccountId(),
-            data: payload,
-            savedAt,
-          })
-          .catch(() => {
-            /* offline — Django sync below still covers durability */
-          })
-      }, 250)
-    }
-    if (pushTimer.current) clearTimeout(pushTimer.current)
-    pushTimer.current = setTimeout(() => {
-      void cartStatePut(payload as unknown as Record<string, unknown>).catch(
-        () => {
-          /* offline — will sync on the next change */
-        },
+      window.localStorage.setItem(
+        storageKey(),
+        JSON.stringify({
+          // Corrections are never written down at all — see persistable().
+          carts: persistable(carts),
+          activeId,
+          savedAt: Date.now(),
+          accountId: convexAccountId(),
+        }),
       )
-    }, 1500)
-    return () => {
-      if (pushTimer.current) clearTimeout(pushTimer.current)
-      if (livePushTimer.current) clearTimeout(livePushTimer.current)
+    } catch {
+      /* private mode / quota — carts still live in memory for this session */
     }
   }, [carts, activeId])
 
@@ -458,39 +292,27 @@ export function usePosCarts() {
    *  no debounce. Used when the cashier deletes/clears a cart so the emptied
    *  cart definitively overwrites the saved server copy — otherwise it would
    *  re-hydrate on the next login. */
+  /**
+   * Write the given state immediately instead of waiting for the effect.
+   *
+   * Used when a cart is closed or cleared, so the removal is on disk before
+   * anything else can read the old copy back.
+   */
   const flushNow = useCallback((nextCarts: Cart[], nextActiveId: string) => {
-    const savedAt = Date.now()
-    lastSavedAt.current = savedAt
-    serverHydrated.current = true // an explicit clear commits to the server
-    skipPush.current = true // the effect must not also push this same state
-    const keep = persistable(nextCarts)
-    // Same reason as the debounced push: an all-corrections list is not an
-    // instruction to clear the other till.
-    if (keep.length === 0) return
-    const payload = {
-      carts: keep,
-      activeId: nextActiveId,
-      savedAt,
-      accountId: convexAccountId(),
-    }
+    skipPush.current = true // the effect must not also write this same state
     try {
-      window.localStorage.setItem(storageKey(), JSON.stringify(payload))
-    } catch {
-      /* storage full — state still lives in memory */
-    }
-    const convex = getConvex()
-    if (convex) {
-      void convex
-        .mutation(cartsApi.put, {
+      window.localStorage.setItem(
+        storageKey(),
+        JSON.stringify({
+          carts: persistable(nextCarts),
+          activeId: nextActiveId,
+          savedAt: Date.now(),
           accountId: convexAccountId(),
-          data: payload,
-          savedAt,
-        })
-        .catch(() => {})
+        }),
+      )
+    } catch {
+      /* private mode / quota */
     }
-    void cartStatePut(payload as unknown as Record<string, unknown>).catch(
-      () => {},
-    )
   }, [])
 
   const active = carts.find((c) => c.id === activeId) ?? carts[0]
@@ -755,8 +577,6 @@ export function usePosCarts() {
       // what it looked like.
       const existing = cartsRef.current.find((c) => c.editingSaleId === sale.id)
       if (existing) {
-        // Adopt it, so the rescue in applyRemote protects it from here on.
-        myEditCarts.current.add(existing.id)
         setActiveId(existing.id)
         return existing.id
       }
@@ -770,9 +590,13 @@ export function usePosCarts() {
         isReturn: Boolean(sale.isReturn),
         discounted: sale.discounted ?? "",
         discountTouched: Boolean(sale.discounted),
+        discountFromOriginal: Boolean(sale.discounted),
+        editingBaseTotal: sale.lines.reduce(
+          (sum, l) => sum + toNumber(l.unitPrice) * l.quantity,
+          0,
+        ),
         lines: sale.lines,
       }
-      myEditCarts.current.add(c.id)
       const next = [...cartsRef.current, c]
       setCarts(next)
       setActiveId(c.id)
@@ -794,7 +618,6 @@ export function usePosCarts() {
    *  comes back on the next login. */
   const closeCart = useCallback(
     (id: string) => {
-      myEditCarts.current.delete(id)
       const rest = cartsRef.current.filter((c) => c.id !== id)
       const next = rest.length > 0 ? rest : [freshCart()]
       const nextActiveId =

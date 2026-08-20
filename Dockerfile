@@ -10,23 +10,40 @@ RUN npm install --legacy-peer-deps --no-audit --no-fund
 COPY . .
 
 # Bake the API base URL into the client bundle at build time.
-ARG NEXT_PUBLIC_API_BASE_URL=https://almawdah-api.clinixa.cloud
+# ---------------------------------------------------------------------------
+# EVERY build argument below defaults to EMPTY, deliberately.
+#
+# A Dockerfile ARG default applies precisely when the platform does NOT pass
+# that argument — so a default is not a safety net, it is a silent substitution.
+# NEXT_PUBLIC_CONVEX_URL defaulted to one shared Convex deployment and every
+# store built from this image joined the same realtime database; two shops'
+# tills showed each other's open baskets. The API base defaulted to another
+# shop's host, which would have pointed this till at that shop's products,
+# sales and debts with nothing on screen to say so.
+#
+# Every store is its own deployment, its own database, its own Convex, its own
+# Sentry project. Anything that says WHICH store this is therefore has exactly
+# one legitimate source: this deployment's environment.
+#
+# Missing config must FAIL, visibly. It must never fall back to a neighbour.
+# ---------------------------------------------------------------------------
+ARG NEXT_PUBLIC_API_BASE_URL=
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 
 # Which tenant this frontend build serves (public price page scope).
-ARG NEXT_PUBLIC_PHARMACY_SLUG=almawdah
+ARG NEXT_PUBLIC_PHARMACY_SLUG=
 ENV NEXT_PUBLIC_PHARMACY_SLUG=$NEXT_PUBLIC_PHARMACY_SLUG
 
-ARG NEXT_PUBLIC_SITE_MODE=store
+ARG NEXT_PUBLIC_SITE_MODE=
 ENV NEXT_PUBLIC_SITE_MODE=$NEXT_PUBLIC_SITE_MODE
 
 # Which vertical this build serves. This ARG was missing, and by the note
 # below that meant Docker silently dropped it and lib/vertical.ts fell back to
 # "shop" — wrong labels everywhere, with no error to notice.
-ARG NEXT_PUBLIC_VERTICAL=supermarket
+ARG NEXT_PUBLIC_VERTICAL=
 ENV NEXT_PUBLIC_VERTICAL=$NEXT_PUBLIC_VERTICAL
 
-ARG NEXT_PUBLIC_ROOT_DOMAIN=clinixa.cloud
+ARG NEXT_PUBLIC_ROOT_DOMAIN=
 ENV NEXT_PUBLIC_ROOT_DOMAIN=$NEXT_PUBLIC_ROOT_DOMAIN
 
 # Convex (realtime cart sync) — public client URL, baked at build time.
@@ -66,13 +83,13 @@ ENV NEXT_PUBLIC_CONVEX_URL=$NEXT_PUBLIC_CONVEX_URL
 # IMPORTANT: this is the right call for THIS single-customer repo. Do NOT
 # copy it back into retail-frontend-template — there the empty default is
 # what stops one tenant's sessions landing in another tenant's project.
-ARG NEXT_PUBLIC_SENTRY_DSN=https://dbf5828239ef1ef74c483ff697917b49@o4505886940921856.ingest.us.sentry.io/4511927759536128
+ARG NEXT_PUBLIC_SENTRY_DSN=
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 
-ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
+ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT=
 ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
 
-ARG NEXT_PUBLIC_CLARITY_ID=y3xn6e0oda
+ARG NEXT_PUBLIC_CLARITY_ID=
 ENV NEXT_PUBLIC_CLARITY_ID=$NEXT_PUBLIC_CLARITY_ID
 
 # Source-map upload. Deliberately NOT defaulted like the two above: unlike a
@@ -85,9 +102,9 @@ ENV NEXT_PUBLIC_CLARITY_ID=$NEXT_PUBLIC_CLARITY_ID
 # warns you. That is a nuisance, not an outage: fix it when convenient.
 ARG SENTRY_AUTH_TOKEN=
 ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
-ARG SENTRY_ORG=broken-dudes
+ARG SENTRY_ORG=
 ENV SENTRY_ORG=$SENTRY_ORG
-ARG SENTRY_PROJECT=almawdah-frontend
+ARG SENTRY_PROJECT=
 ENV SENTRY_PROJECT=$SENTRY_PROJECT
 
 ENV NEXT_TELEMETRY_DISABLED=1

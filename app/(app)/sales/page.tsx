@@ -161,8 +161,13 @@ function SaleDetail({
       >
         {sale && (
           <>
+            {/* shrink-0: the dialog is a flex column with a max height, so a
+                child without it gets SQUEEZED as the middle grows. Expanding
+                the revision history crushed this header and hid قيمة البيع —
+                the one number the owner opened the invoice to read. Only the
+                middle section may give; the header and the footer are fixed. */}
             <div
-              className="ink-panel rounded-none p-6"
+              className="ink-panel shrink-0 rounded-none p-6"
               style={{ borderRadius: 0, boxShadow: "none" }}
             >
               <div className="flex items-start justify-between gap-3">
@@ -280,7 +285,7 @@ function SaleDetail({
               </div>
             </div>
 
-            <div className="flex flex-row items-center justify-between gap-2 border-t border-border/70 bg-muted/30 px-6 py-4">
+            <div className="flex shrink-0 flex-row items-center justify-between gap-2 border-t border-border/70 bg-muted/30 px-6 py-4">
               <div className="flex items-center gap-2">
                 <button
                   type="button"

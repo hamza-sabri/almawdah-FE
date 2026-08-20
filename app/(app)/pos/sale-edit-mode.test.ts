@@ -130,33 +130,22 @@ describe("the ?edit= parameter actually reaches the page", () => {
   })
 })
 
-describe("the cross-device cart sync cannot eat a correction", () => {
-  it("rescues a correction the remote snapshot predates", () => {
-    // The server copy is fetched on mount, before the cashier taps the pencil.
-    // Applying it wholesale a moment later deletes the cart she is looking at.
-    const fn = sliceFn(CART, "const applyRemote")
-    expect(fn).toContain("c.editingSaleId != null")
-    expect(fn).toContain("!incoming.some((r) => r.id === c.id)")
+describe("carts do not sync at all any more", () => {
+  it("has no remote copy that could wipe or resurrect a correction", () => {
+    // The rescue that used to live here existed to protect a correction from
+    // an in-flight server snapshot. There is no server snapshot now — carts
+    // never leave the browser — so the thing it defended against is gone
+    // rather than defended against. See use-pos-carts.test.ts.
+    expect(CART).not.toContain("applyRemote")
+    expect(CART).not.toContain("cartStateGet")
   })
 
-  it("rescues ONLY corrections", () => {
-    // An ordinary cart missing from the remote copy usually means another till
-    // closed it; bringing those back would undo that.
-    const fn = sliceFn(CART, "const applyRemote")
-    expect(fn).toContain("rescued.length > 0 ? [...incoming, ...rescued] : incoming")
-  })
-
-  it("leaves the focus on the correction being edited", () => {
-    const fn = sliceFn(CART, "const applyRemote")
-    expect(fn).toContain("rescued.some((c) => c.id === cur)")
-  })
-
-  it("commits the correction cart immediately instead of waiting to be raced", () => {
-    // The rescue above reads a ref that only updates on render, so it cannot
-    // be the only defence. Stamping a newer savedAt makes the in-flight server
-    // snapshot lose on arrival rather than win.
-    const fn = sliceFn(CART, "const openSaleForEdit")
-    expect(fn).toContain("flushNow(next, c.id)")
+  it("still writes a correction nowhere at all", () => {
+    // Not even to localStorage: that is what let a closed one come back.
+    const fn = sliceFn(CART, "function persistable")
+    expect(CART.slice(CART.indexOf("function persistable"), CART.indexOf("function persistable") + 300))
+      .toContain("c.editingSaleId == null")
+    expect(fn).toBeTruthy()
   })
 })
 

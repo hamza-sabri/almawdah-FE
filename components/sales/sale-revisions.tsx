@@ -240,12 +240,37 @@ export function SaleRevisions({
                   </div>
                 ))}
               </div>
-              <div className="mt-2 flex items-center justify-between border-t pt-2 font-semibold">
-                <span>الإجمالي وقتها</span>
-                <span className="tabular-nums">
-                  {formatMoney(rev.snapshot.discounted_total)}
-                </span>
-              </div>
+              {/* Two numbers, because they are two different facts and
+                  showing only the second read as a bug: eight lines adding to
+                  ₪120.99 under a heading saying ₪10.00. The first is what the
+                  lines came to; the second is what the customer actually paid,
+                  and it only appears when they differ. */}
+              {(() => {
+                const lineSum = rev.snapshot.items.reduce(
+                  (sum, it) => sum + toNumber(it.line_total),
+                  0,
+                )
+                const charged = toNumber(rev.snapshot.discounted_total)
+                const differs = Math.abs(lineSum - charged) > 0.005
+                return (
+                  <div className="mt-2 space-y-0.5 border-t pt-2">
+                    <div className="flex items-center justify-between font-semibold">
+                      <span>مجموع الأصناف</span>
+                      <span className="tabular-nums">
+                        {formatMoney(lineSum)}
+                      </span>
+                    </div>
+                    {differs && (
+                      <div className="flex items-center justify-between text-warning-foreground">
+                        <span>المبلغ المدفوع وقتها</span>
+                        <span className="font-semibold tabular-nums">
+                          {formatMoney(charged)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           ))}
           {data && data.length === 0 && (

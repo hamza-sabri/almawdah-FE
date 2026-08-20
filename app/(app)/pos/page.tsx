@@ -583,12 +583,39 @@ function SaleControls({ pos }: { pos: Pos }) {
   const total = active ? cartTotal(active) : 0
 
   // Keep the discount field showing the live total until the cashier edits it.
+  //
+  // One exception, and it is a money one. A CORRECTION opens with the amount
+  // the original invoice was settled at, so reopening a ₪90-on-₪100 sale to
+  // fix a name does not silently re-charge ₪100. That pin has to let go the
+  // moment the LINES change: ₪10 agreed for one item is not the amount for
+  // that item plus eight more, and holding it there charged ₪10 for ₪121 of
+  // goods with nothing on screen to say so.
+  //
+  // Only the ORIGINAL sale's amount unpins this way. An amount the cashier
+  // types during the correction is hers and is never overwritten.
   useEffect(() => {
-    if (!active || active.discountTouched) return
+    if (!active) return
+    const linesMoved =
+      active.discountFromOriginal &&
+      active.editingBaseTotal != null &&
+      Math.abs(total - active.editingBaseTotal) > 0.005
+    if (active.discountTouched && !linesMoved) return
     const t = total.toFixed(2)
-    if (active.discounted !== t) patchActive({ discounted: t })
+    if (active.discounted !== t || linesMoved) {
+      patchActive({
+        discounted: t,
+        discountTouched: false,
+        discountFromOriginal: false,
+      })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [total, active?.id, active?.discountTouched])
+  }, [
+    total,
+    active?.id,
+    active?.discountTouched,
+    active?.discountFromOriginal,
+    active?.editingBaseTotal,
+  ])
 
   if (!active) return null
   const isDebt = !active.isReturn && active.payment === "debt"
@@ -667,7 +694,11 @@ function SaleControls({ pos }: { pos: Pos }) {
         className="text-start"
         value={active.discounted}
         onChange={(e) =>
-          patchActive({ discounted: e.target.value, discountTouched: true })
+          patchActive({
+            discounted: e.target.value,
+            discountTouched: true,
+            discountFromOriginal: false,
+          })
         }
       />
       <CustomerForm
@@ -704,7 +735,11 @@ function TotalRow({ pos }: { pos: Pos }) {
           title="اضغط لتعديل الإجمالي"
           className="h-9 w-28 text-xl"
           onCommit={(v) =>
-            pos.patchActive({ discounted: v.toFixed(2), discountTouched: true })
+            pos.patchActive({
+              discounted: v.toFixed(2),
+              discountTouched: true,
+              discountFromOriginal: false,
+            })
           }
         />
       </span>
