@@ -71,11 +71,11 @@ describe("restoring a version", () => {
   })
 
   it("refreshes everything the edit touched", () => {
-    // sale-revisions is keyed by sale id; the rest are flat.
+    // The history is keyed by sale id, so it is invalidated here. Everything
+    // else a sale moves comes from the ONE shared list — see
+    // lib/sale-queries.ts for why no file keeps its own copy any more.
     expect(SRC).toContain('queryKey: ["sale-revisions", saleId]')
-    for (const key of ["sales", "products", "customers", "dashboard-stats"]) {
-      expect(SRC).toContain(`queryKey: ["${key}"]`)
-    }
+    expect(SRC).toContain("invalidateSaleData(qc)")
   })
 })
 

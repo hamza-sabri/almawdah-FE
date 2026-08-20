@@ -7,20 +7,14 @@ import { useOnline } from "@/hooks/use-online"
 import { onQueueChange, pendingCount } from "@/lib/offline/queue"
 import { flushPendingSales } from "@/lib/offline/sync"
 import { canAutoUpload } from "@/lib/offline/sync-mode"
+import { SALE_AFFECTED_KEYS } from "@/lib/sale-queries"
 
 const RETRY_MS = 20_000
 
-// Query keys touched by a synced sale (mirror of the POS checkout invalidation).
-const AFFECTED_KEYS = [
-  ["products"],
-  ["sales"],
-  ["sales-stats"],
-  ["debts"],
-  ["dashboard-stats"],
-  ["customers"],
-  ["customers-quick"],
-  ["pos-catalog"],
-]
+// Query keys touched by a synced sale. Shared with the checkout, the void,
+// the wipe and the revision restore — this used to be a hand-kept copy that
+// drifted out of step with them.
+const AFFECTED_KEYS = SALE_AFFECTED_KEYS
 
 /**
  * Owns the offline-sale sync loop. Mount ONCE (see OfflineStatus in the app

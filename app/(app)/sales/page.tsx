@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import {
   Banknote,
   CalendarDays,
+  ChevronDown,
   CloudOff,
   Package,
   Pencil,
@@ -45,6 +46,8 @@ import {
 } from "@/lib/offline/local-sale"
 import { bulkDeleteSales } from "@/api/products"
 
+import { invalidateSaleData } from "@/lib/sale-queries"
+import { DaySummaryCards } from "@/components/sales/day-summary-cards"
 import { SaleRevisions } from "@/components/sales/sale-revisions"
 import { PageHeader } from "@/components/page-header"
 import { ReportsTeaser } from "@/components/reports/reports-teaser"
@@ -481,10 +484,7 @@ export default function SalesPage() {
     try {
       await salesDelete(toVoid.id)
       toast.success("أُلغي البيع واستُرجع المخزون")
-      qc.invalidateQueries({ queryKey: ["sales"] })
-      qc.invalidateQueries({ queryKey: ["sales-stats"] })
-      qc.invalidateQueries({ queryKey: ["products"] })
-      qc.invalidateQueries({ queryKey: ["dashboard-stats"] })
+      invalidateSaleData(qc)
       setToVoid(null)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "تعذر الإلغاء")
@@ -498,10 +498,7 @@ export default function SalesPage() {
     try {
       await bulkDeleteSales({ all: true })
       toast.success("حُذفت كل المبيعات واستُرجع المخزون")
-      qc.invalidateQueries({ queryKey: ["sales"] })
-      qc.invalidateQueries({ queryKey: ["sales-stats"] })
-      qc.invalidateQueries({ queryKey: ["products"] })
-      qc.invalidateQueries({ queryKey: ["dashboard-stats"] })
+      invalidateSaleData(qc)
       setWipeOpen(false)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "تعذر الحذف")
@@ -553,6 +550,14 @@ export default function SalesPage() {
         }
       />
 
+      {/* The three numbers the owner actually opens this page for: جوال,
+          دخان, and the day's total — for the TRADING day, which rolls over at
+          4am rather than midnight. Above everything else because he wants to
+          walk past the screen and know. */}
+      <div className="mb-4">
+        <DaySummaryCards />
+      </div>
+
       {/* Period totals */}
       {statsLoading && (
         <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
@@ -582,9 +587,17 @@ export default function SalesPage() {
       {/* Reports module — live preview or the locked upsell teaser. */}
       <ReportsTeaser />
 
-      {/* Category split + payment split (last 30 days) */}
+      {/* Category split + payment split (last 30 days).
+          Collapsed: the owner does not read these, and they pushed the numbers
+          he DOES read below the fold. Still one click away for whoever wants
+          them. */}
       {stats && (stats.by_category.length > 0 || splitTotal > 0) && (
-        <div className="mb-5 grid gap-4 lg:grid-cols-2">
+        <details className="group mb-5">
+          <summary className="mb-3 flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-foreground">
+            <ChevronDown className="size-4 transition group-open:rotate-180" />
+            تحليلات آخر ٣٠ يوماً
+          </summary>
+        <div className="grid gap-4 lg:grid-cols-2">
           <Card className="sale-stat clay-card border-0">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">المبيعات حسب التصنيف</CardTitle>
@@ -698,6 +711,7 @@ export default function SalesPage() {
             </CardContent>
           </Card>
         </div>
+        </details>
       )}
 
       {/* History */}

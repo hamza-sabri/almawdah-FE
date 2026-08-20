@@ -195,6 +195,26 @@ export const salesRevisions = (id: number) =>
 export const salesDelete = (id: number) =>
   customFetch<void>(`/api/v1/sales/${id}/`, { method: "DELETE" })
 
+/**
+ * Takings for the CURRENT trading day — which does not begin at midnight.
+ *
+ * The shop is still selling at 1am and cashes up in the morning, so the
+ * rollover hour lives on the server (BUSINESS_DAY_START_HOUR, default 4) and
+ * is applied in the shop's own timezone. The client must not compute this
+ * itself: a till whose clock or timezone is off would quietly report a
+ * different day than the owner's books.
+ */
+export type DaySummary = {
+  day_start: string
+  day_end: string
+  cutover_hour: number
+  total: { amount: string; count: number }
+  groups: Array<{ key: string; label: string; amount: string; count: number }>
+}
+
+export const salesDaySummary = () =>
+  customFetch<{ data: DaySummary }>(`/api/v1/sales/day_summary/`)
+
 export const salesStats = () =>
   customFetch<{ data: SalesStats }>(`/api/v1/sales/stats/`)
 

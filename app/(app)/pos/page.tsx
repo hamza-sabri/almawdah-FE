@@ -61,6 +61,7 @@ import { TopupButtons } from "@/components/pos/topup-buttons"
 import { QuickCards } from "@/components/pos/quick-cards"
 import { ManualLineRow } from "@/components/pos/manual-line-row"
 import { useCustomersCatalog } from "@/hooks/use-customers-catalog"
+import { invalidateSaleData } from "@/lib/sale-queries"
 import { useSaleEditLink } from "@/hooks/use-sale-edit-link"
 import { useDebounced } from "@/hooks/use-debounced"
 import {
@@ -320,12 +321,7 @@ function useCheckout(pos: Pos, onDone?: () => void) {
             pharmacyLogo,
           )
         }
-        qc.invalidateQueries({ queryKey: ["products"] })
-        qc.invalidateQueries({ queryKey: ["sales"] })
-        qc.invalidateQueries({ queryKey: ["sales-stats"] })
-        qc.invalidateQueries({ queryKey: ["dashboard-stats"] })
-        qc.invalidateQueries({ queryKey: ["customers"] })
-        qc.invalidateQueries({ queryKey: ["customers-quick"] })
+        invalidateSaleData(qc)
       } else {
         const headline = "لا يوجد اتصال — حُفظت الفاتورة وستُزامن تلقائياً"
         toast.warning(headline, { id: toastId, duration: 4000 })

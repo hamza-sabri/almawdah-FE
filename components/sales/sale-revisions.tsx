@@ -12,6 +12,7 @@ import {
 } from "@/api/sales"
 import { useMe, displayName } from "@/hooks/use-me"
 import { formatDate, formatMoney, toNumber } from "@/lib/format"
+import { invalidateSaleData } from "@/lib/sale-queries"
 import { deliverAndToast } from "@/lib/print/deliver"
 import { loadPrintSettings } from "@/lib/print/settings"
 import type { ReceiptData } from "@/lib/print/receipt"
@@ -117,12 +118,7 @@ export function SaleRevisions({
       setConfirming(null)
       // The sale, its history, and everything the edit moved.
       qc.invalidateQueries({ queryKey: ["sale-revisions", saleId] })
-      qc.invalidateQueries({ queryKey: ["sales"] })
-      qc.invalidateQueries({ queryKey: ["sales-stats"] })
-      qc.invalidateQueries({ queryKey: ["products"] })
-      qc.invalidateQueries({ queryKey: ["customers"] })
-      qc.invalidateQueries({ queryKey: ["customers-quick"] })
-      qc.invalidateQueries({ queryKey: ["dashboard-stats"] })
+      invalidateSaleData(qc)
     },
     onError: (e) =>
       toast.error((e as Error)?.message || "تعذّر استرجاع النسخة"),
