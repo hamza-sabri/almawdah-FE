@@ -209,7 +209,21 @@ export type DaySummary = {
   day_end: string
   cutover_hour: number
   total: { amount: string; count: number }
-  groups: Array<{ key: string; label: string; amount: string; count: number }>
+  groups: Array<{
+    key: string
+    label: string
+    amount: string
+    count: number
+    /**
+     * The name pattern the SERVER used to pick these lines.
+     *
+     * Sent so the till can apply the same rule to sales still sitting in its
+     * offline queue, instead of keeping its own copy of the words — which
+     * would drift the first time the shop stocks a brand neither side knew
+     * about. See lib/offline/reads.ts.
+     */
+    match?: string
+  }>
 }
 
 export const salesDaySummary = () =>

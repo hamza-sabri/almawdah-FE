@@ -1,6 +1,6 @@
 "use client"
 
-import type { Sale, SalesStats } from "@/api/sales"
+import type { DaySummary, Sale, SalesStats } from "@/api/sales"
 import type { Debt } from "@/api/generated/model"
 import { STORE_KV, idbGet, idbPut } from "@/lib/offline/idb"
 import { listQueuedSales } from "@/lib/offline/queue"
@@ -18,6 +18,7 @@ const ok = <T>(data: T): Env<T> => ({ status: 200, data, headers: new Headers() 
 
 function keyFor(url: string): string | null {
   const [path, query = ""] = url.split("?")
+  if (path.endsWith("/sales/day_summary/")) return "read:sales:day-summary"
   if (path.endsWith("/sales/stats/")) return "read:sales:stats"
   if (path.endsWith("/sales/")) return "read:sales:list"
   if (path.endsWith("/debts/dashboard/")) return "read:debts:dashboard"
@@ -469,6 +470,69 @@ export async function localReadResponse<T>(url: string): Promise<T | null> {
         cash: money(Number(base.payment_split.cash) + cash),
         debt: money(Number(base.payment_split.debt) + debt),
       },
+    }) as T
+  }
+
+  if (k === "read:sales:day-summary") {
+    // The three cards the owner reads at a glance. Offline they must keep
+    // working — a shop does not stop selling because the line dropped, and a
+    // total that silently freezes (or vanishes) during a cut is worse than no
+    // total at all: he has no way to know it stopped counting.
+    const base = await cached<DaySummary>(k)
+    if (!base) return null // never cached online — nothing honest to show
+    const q = await listQueuedSales()
+    if (q.length === 0) return ok(base) as T
+
+    // Only sales inside the CACHED window count. The window is the server's
+    // (it owns the 4am rollover); a sale queued before it belongs to the
+    // previous trading day and must not inflate this one.
+    const from = Date.parse(base.day_start)
+    const to = Date.parse(base.day_end)
+    const mine = q.filter(
+      (s) =>
+        Number.isFinite(from) &&
+        s.createdAt >= from &&
+        (!Number.isFinite(to) || s.createdAt < to),
+    )
+    if (mine.length === 0) return ok(base) as T
+
+    const sign = (s: (typeof mine)[number]) => (s.isReturn ? -1 : 1)
+    const total = mine.reduce((sum, s) => sum + sign(s) * s.discountedTotal, 0)
+
+    const groups = base.groups.map((g) => {
+      if (!g.match) return g
+      let re: RegExp
+      try {
+        re = new RegExp(g.match, "i")
+      } catch {
+        return g // a pattern this browser cannot compile — leave the figure be
+      }
+      let amount = 0
+      let count = 0
+      for (const s of mine) {
+        const lines = (s.payload.items ?? []).filter((it) =>
+          re.test(it.medication_name || ""),
+        )
+        if (lines.length === 0) continue
+        count += 1 // receipts, not lines — same as the server
+        for (const it of lines) {
+          amount += sign(s) * Number(it.unit_price ?? 0) * it.quantity
+        }
+      }
+      return {
+        ...g,
+        amount: money(Number(g.amount) + amount),
+        count: g.count + count,
+      }
+    })
+
+    return ok({
+      ...base,
+      total: {
+        amount: money(Number(base.total.amount) + total),
+        count: base.total.count + mine.length,
+      },
+      groups,
     }) as T
   }
 
