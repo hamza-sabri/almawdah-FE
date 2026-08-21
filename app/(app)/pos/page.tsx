@@ -708,7 +708,13 @@ function SaleControls({ pos }: { pos: Pos }) {
   )
 }
 
-function TotalRow({ pos }: { pos: Pos }) {
+function TotalRow({
+  pos,
+  onSubmitSale,
+}: {
+  pos: Pos
+  onSubmitSale?: () => void
+}) {
   const active = pos.active
   if (!active) return null
   const total = cartTotal(active)
@@ -737,6 +743,7 @@ function TotalRow({ pos }: { pos: Pos }) {
               discountFromOriginal: false,
             })
           }
+          onSubmitSale={onSubmitSale}
         />
       </span>
     </div>
@@ -924,6 +931,31 @@ export function QtyEditor({
   function onKeyDown(e: { key: string; preventDefault: () => void }) {
     const now = Date.now()
     const b = burst.current
+    // + / − nudge THIS line, while the field is focused.
+    //
+    // The page-level handler for these keys bails out the moment any field
+    // has focus — and after a scan this field is exactly what has focus, so
+    // pressing + did nothing at all. That is the one moment a cashier reaches
+    // for it: item scanned, "make it three".
+    if (e.key === "+" || e.key === "-") {
+      e.preventDefault()
+      b.chars = ""
+      b.base = ""
+      const current = parseFloat(text.trim())
+      const from = isFinite(current) ? current : value
+      const next = Math.max(0, roundQty(from + (e.key === "+" ? 1 : -1)))
+      setText(formatQty(next))
+      onChange(next)
+      return
+    }
+    if (e.key === "F2") {
+      // Bank what is typed, then LET IT THROUGH. F2 is handled once, globally
+      // (useGlobalScanner), so it works from anywhere on the page; this field
+      // only has to make sure the receipt prints the quantity on screen rather
+      // than the one from a keystroke ago. No preventDefault, deliberately.
+      commit()
+      return
+    }
     if (e.key === "Enter") {
       const code = b.chars
       const base = b.base
@@ -1129,7 +1161,7 @@ function CartPanel({
         <InlineScanner onDetect={onScanCode} className="h-[30dvh] shrink-0" />
       )}
 
-      {totalOnTop && <TotalRow pos={pos} />}
+      {totalOnTop && <TotalRow pos={pos} onSubmitSale={onSubmitSale} />}
 
       <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto">
         {active.lines.length === 0 && (
@@ -1160,7 +1192,7 @@ function CartPanel({
       </div>
 
       <div className="space-y-2">
-        {!totalOnTop && <TotalRow pos={pos} />}
+        {!totalOnTop && <TotalRow pos={pos} onSubmitSale={onSubmitSale} />}
         <CheckoutButtons pos={pos} checkout={checkout} />
       </div>
     </div>
@@ -1239,6 +1271,7 @@ function MoneyEditor({
   edited = false,
   className,
   title,
+  onSubmitSale,
 }: {
   value: number
   onCommit: (v: number) => void
@@ -1246,6 +1279,7 @@ function MoneyEditor({
   edited?: boolean
   className?: string
   title?: string
+  onSubmitSale?: () => void
 }) {
   const [text, setText] = useState("")
   const [editing, setEditing] = useState(false)
@@ -1264,6 +1298,20 @@ function MoneyEditor({
     if (Math.abs(n - value) > 0.004) onCommit(Number(n.toFixed(2)))
   }
 
+  /**
+   * Enter and F2 must bank the typed amount BEFORE they finish the sale.
+   *
+   * This used to only blur, and rely on the blur handler to commit. Whether
+   * the amount survived then depended on the order two handlers happened to
+   * run in — so a cashier who typed a haggled price and hit Enter without
+   * clicking away could ring the OLD price, with the new one still on screen.
+   * Committing here, first, removes the race entirely.
+   */
+  function commitThen(run?: () => void) {
+    commit()
+    run?.()
+  }
+
   return (
     <input
       value={text}
@@ -1278,6 +1326,13 @@ function MoneyEditor({
         if (e.key === "Enter") {
           e.preventDefault()
           e.currentTarget.blur()
+          commitThen(onSubmitSale)
+          return
+        }
+        if (e.key === "F2") {
+          // Bank the amount, then let F2 reach the global handler that prints.
+          commitThen()
+          return
         }
         if (e.key === "Escape") {
           setText(value.toFixed(2))
@@ -1610,6 +1665,7 @@ function TableMode({
                         : "اضغط لتعديل المبلغ"
                     }
                     onCommit={(v) => pos.setLineTotal(l.key, v)}
+                    onSubmitSale={onSubmitSale}
                   />
                   </div>
                 </TableCell>
@@ -1650,7 +1706,7 @@ function TableMode({
       <div className="grid gap-3 lg:grid-cols-[1fr_360px]">
         <SaleControls pos={pos} />
         <div className="space-y-2">
-          <TotalRow pos={pos} />
+          <TotalRow pos={pos} onSubmitSale={onSubmitSale} />
           <CheckoutButtons pos={pos} checkout={checkout} />
         </div>
       </div>
@@ -1667,12 +1723,14 @@ function PosPageInner() {
   // Complete the active cart's sale (fired by a bare Enter, or Enter from the
   // auto-focused quantity field). Silent no-op on an empty cart so a stray
   // Enter never nags the cashier.
-  const submitActiveSale = () => {
+  const submitActiveSale = (forcePrint = false) => {
     if (pageCheckout.isPending) return
     if (!pos.active || pos.active.lines.length === 0) return
     const input = buildPayload(pos)
-    if (input) pageCheckout.mutate(input)
+    if (input) pageCheckout.mutate(forcePrint ? { ...input, forcePrint } : input)
   }
+  /** F2 — finish the sale and print it, from anywhere on the page. */
+  const printActiveSale = () => submitActiveSale(true)
   // Table is the default view for this store — the cashier works from a
   // barcode scanner and a list, not a picture grid.
   const [mode, setMode] = useState<"grid" | "table">("table")
@@ -1690,7 +1748,7 @@ function PosPageInner() {
     setQtySeed(null)
   }, [pos.lastAddedKey, pos.addTick])
   useGlobalScanner((code) => void handleWedgeEnter(code), {
-    onEnter: submitActiveSale,
+    onEnter: () => submitActiveSale(false),
     // + / − nudge the line the cashier just added — the common case is "make
     // that two" right after a scan, and reaching for the mouse to hit the
     // on-screen stepper costs more than the sale is worth.
@@ -1700,6 +1758,7 @@ function PosPageInner() {
       pos.setQuantity(line.key, Math.max(0, line.quantity + delta))
     },
     onNewCart: pos.parkAndNew,
+    onPrintSale: printActiveSale,
     // A digit typed with nothing focused = a manual quantity for that line.
     onDigit: (digit) => {
       if (!pos.active?.lines.some((l) => l.key === pos.lastAddedKey)) return
@@ -2045,7 +2104,7 @@ function PosPageInner() {
             addMedOrPick(catalogToMed(m), medVariants(m))
             setSearchRaw("")
           }}
-          onSubmitSale={submitActiveSale}
+          onSubmitSale={() => submitActiveSale(false)}
         />
       ) : (
         <>
@@ -2138,7 +2197,7 @@ function PosPageInner() {
                   qtySeed={qtySeed}
                   pos={pos}
                   onScanBurst={(code) => void handleWedgeEnter(code)}
-                  onSubmitSale={submitActiveSale}
+                  onSubmitSale={() => submitActiveSale(false)}
                 />
               </Card>
             </div>
@@ -2212,7 +2271,7 @@ function PosPageInner() {
                 defaultScanning={sheetScan}
                 onDone={() => setCartOpen(false)}
                 onScanBurst={(code) => void handleWedgeEnter(code)}
-                onSubmitSale={submitActiveSale}
+                onSubmitSale={() => submitActiveSale(false)}
               />
             </DialogContent>
           </Dialog>

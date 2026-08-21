@@ -34,6 +34,10 @@ export function useGlobalScanner(
     // The seed matters: without it the first character is swallowed by the
     // focus change, and a barcode that arrives this way loses its first digit.
     onDigit,
+    // F2: complete the sale AND print it. A function key, so unlike Enter it
+    // is unambiguous even while the cashier is typing in a field — which is
+    // exactly when she wants it.
+    onPrintSale,
   }: {
     enabled?: boolean
     minLength?: number
@@ -42,6 +46,7 @@ export function useGlobalScanner(
     onAdjustQty?: (delta: number) => void
     onNewCart?: () => void
     onDigit?: (digit: string) => void
+    onPrintSale?: () => void
   } = {},
 ) {
   const onScanRef = useRef(onScan)
@@ -54,6 +59,8 @@ export function useGlobalScanner(
   onNewCartRef.current = onNewCart
   const onDigitRef = useRef(onDigit)
   onDigitRef.current = onDigit
+  const onPrintSaleRef = useRef(onPrintSale)
+  onPrintSaleRef.current = onPrintSale
 
   useEffect(() => {
     if (!enabled) return
@@ -89,6 +96,18 @@ export function useGlobalScanner(
     function onKeyDown(e: KeyboardEvent) {
       // Let real shortcuts and modified keys through untouched.
       if (e.ctrlKey || e.metaKey || e.altKey) return
+      // F2 — checkout AND print. Handled BEFORE the focused-field bail-out on
+      // purpose: a function key cannot be mistaken for typing, and the moment
+      // the cashier wants it is usually mid-edit with the quantity field still
+      // focused. The editors commit their own pending text first, so nothing
+      // half-typed is lost.
+      if (e.key === "F2") {
+        e.preventDefault()
+        cancelDigit()
+        buffer = ""
+        onPrintSaleRef.current?.()
+        return
+      }
       // If a field is focused, it owns the keystrokes (manual entry / the
       // search bar's own scan handling).
       if (isEditable(document.activeElement)) {
