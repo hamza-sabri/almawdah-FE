@@ -1729,8 +1729,37 @@ function PosPageInner() {
     const input = buildPayload(pos)
     if (input) pageCheckout.mutate(forcePrint ? { ...input, forcePrint } : input)
   }
+
+  /**
+   * Ask for a checkout on the NEXT render, not this instant.
+   *
+   * A field that finishes the sale has to bank its text first, and banking it
+   * is a React state update — which does not land until the component
+   * re-renders. Calling the checkout straight afterwards reads the cart from
+   * the render that is still on screen, i.e. the values from BEFORE the edit:
+   * the cashier types 12, presses Enter, sees 12 flash, and the receipt says
+   * 10. That is exactly what happened.
+   *
+   * Bumping a counter instead means the edit and the request are batched into
+   * one render, and the effect below runs after it — reading a cart that
+   * definitely contains the typed value.
+   */
+  const [submitTick, setSubmitTick] = useState(0)
+  const submitPrintRef = useRef(false)
+  const requestSubmit = (forcePrint = false) => {
+    submitPrintRef.current = forcePrint
+    setSubmitTick((n) => n + 1)
+  }
+  useEffect(() => {
+    if (submitTick === 0) return
+    submitActiveSale(submitPrintRef.current)
+    // Only the tick may trigger this; submitActiveSale is re-created each
+    // render and reads the cart as it stands NOW, which is the whole point.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitTick])
+
   /** F2 — finish the sale and print it, from anywhere on the page. */
-  const printActiveSale = () => submitActiveSale(true)
+  const printActiveSale = () => requestSubmit(true)
   // Table is the default view for this store — the cashier works from a
   // barcode scanner and a list, not a picture grid.
   const [mode, setMode] = useState<"grid" | "table">("table")
@@ -1748,7 +1777,7 @@ function PosPageInner() {
     setQtySeed(null)
   }, [pos.lastAddedKey, pos.addTick])
   useGlobalScanner((code) => void handleWedgeEnter(code), {
-    onEnter: () => submitActiveSale(false),
+    onEnter: () => requestSubmit(false),
     // + / − nudge the line the cashier just added — the common case is "make
     // that two" right after a scan, and reaching for the mouse to hit the
     // on-screen stepper costs more than the sale is worth.
@@ -2104,7 +2133,7 @@ function PosPageInner() {
             addMedOrPick(catalogToMed(m), medVariants(m))
             setSearchRaw("")
           }}
-          onSubmitSale={() => submitActiveSale(false)}
+          onSubmitSale={() => requestSubmit(false)}
         />
       ) : (
         <>
@@ -2197,7 +2226,7 @@ function PosPageInner() {
                   qtySeed={qtySeed}
                   pos={pos}
                   onScanBurst={(code) => void handleWedgeEnter(code)}
-                  onSubmitSale={() => submitActiveSale(false)}
+                  onSubmitSale={() => requestSubmit(false)}
                 />
               </Card>
             </div>
@@ -2271,7 +2300,7 @@ function PosPageInner() {
                 defaultScanning={sheetScan}
                 onDone={() => setCartOpen(false)}
                 onScanBurst={(code) => void handleWedgeEnter(code)}
-                onSubmitSale={() => submitActiveSale(false)}
+                onSubmitSale={() => requestSubmit(false)}
               />
             </DialogContent>
           </Dialog>

@@ -75,7 +75,7 @@ describe("F2 finishes the sale and prints it", () => {
   })
 
   it("is wired to a checkout that forces printing", () => {
-    expect(POS).toContain("const printActiveSale = () => submitActiveSale(true)")
+    expect(POS).toContain("const printActiveSale = () => requestSubmit(true)")
     expect(POS).toContain("onPrintSale: printActiveSale")
   })
 
@@ -94,6 +94,29 @@ describe("F2 finishes the sale and prints it", () => {
   it("a bare Enter never forces a print", () => {
     // onEnter used to be passed the handler directly, so the KeyboardEvent
     // would have arrived as the forcePrint argument.
-    expect(POS).toContain("onEnter: () => submitActiveSale(false)")
+    expect(POS).toContain("onEnter: () => requestSubmit(false)")
+  })
+})
+
+describe("a typed value is banked BEFORE the sale is read", () => {
+  it("schedules the checkout instead of firing it in the same tick", () => {
+    // Banking the text is a React state update; it does not land until the
+    // next render. Checking out immediately afterwards read the cart from the
+    // render still on screen — the values from before the edit. The cashier
+    // typed 12, saw 12 flash, and the receipt said 10.
+    expect(POS).toContain("const requestSubmit = (forcePrint = false)")
+    expect(POS).toContain("setSubmitTick((n) => n + 1)")
+  })
+
+  it("runs the checkout from an effect, after that render", () => {
+    expect(POS).toContain("submitActiveSale(submitPrintRef.current)")
+    expect(POS).toContain("}, [submitTick])")
+  })
+
+  it("no field path calls the checkout directly any more", () => {
+    // Exactly one direct call survives — inside the effect. Any other is the
+    // same race wearing a different hat.
+    const direct = POS.match(/submitActiveSale\(/g) || []
+    expect(direct.length).toBe(1)
   })
 })
