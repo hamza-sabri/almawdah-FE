@@ -391,7 +391,23 @@ function buildPayload(pos: Pos): CheckoutInput | null {
     return null
   }
   const total = cartTotal(active)
-  const discounted = active.discounted.trim() ? toNumber(active.discounted) : null
+  /**
+   * A discount counts ONLY if the cashier actually set one.
+   *
+   * `discounted` doubles as a display field: when nobody has touched it, an
+   * effect keeps it mirroring the cart total. Effects run AFTER the render
+   * that changed the lines — and child effects before parent ones — so that
+   * mirror is always one render behind. Treating it as an override meant a
+   * line corrected to ₪12 was sent with discounted_total ₪10: the invoice
+   * showed a 12.00 line struck through by a 10.00 total, and 10.00 is what the
+   * shop was paid.
+   *
+   * Derived state must never override the thing it is derived from. If the
+   * cashier has not typed an amount, the line sum IS the amount.
+   */
+  const hasDiscount =
+    Boolean(active.discountTouched) && active.discounted.trim() !== ""
+  const discounted = hasDiscount ? toNumber(active.discounted) : null
   // A customer is attached ONLY for debt sales (that's who owes).
   const isDebt = !active.isReturn && active.payment === "debt"
   const paymentMethod: "cash" | "debt" = active.isReturn ? "cash" : active.payment
@@ -718,7 +734,12 @@ function TotalRow({
   const active = pos.active
   if (!active) return null
   const total = cartTotal(active)
-  const discounted = active.discounted.trim() ? toNumber(active.discounted) : null
+  // Same rule as buildPayload: an untouched field is a MIRROR of the total,
+  // and a mirror that is one render stale must not be shown as a discount.
+  const discounted =
+    active.discountTouched && active.discounted.trim()
+      ? toNumber(active.discounted)
+      : null
   return (
     <div className="flex items-baseline justify-between rounded-2xl bg-muted/60 px-4 py-2.5">
       <span className="text-sm text-muted-foreground">الإجمالي</span>

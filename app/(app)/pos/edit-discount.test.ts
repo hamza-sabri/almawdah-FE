@@ -70,3 +70,28 @@ describe("the history panel's totals", () => {
     expect(REVISIONS).toContain("Math.abs(lineSum - charged) > 0.005")
   })
 })
+
+describe("a derived total is never sent as a discount", () => {
+  it("only treats the field as an override when the cashier touched it", () => {
+    // `discounted` doubles as a display field: untouched, an effect keeps it
+    // mirroring the cart total. Effects run after the render that changed the
+    // lines — and child effects before parent ones — so that mirror is always
+    // one render behind. Sending it as an override meant a line corrected to
+    // ₪12 was charged at ₪10: the invoice showed a 12.00 line struck through
+    // by a 10.00 total, and 10.00 is what the shop was paid.
+    expect(POS).toContain(
+      "Boolean(active.discountTouched) && active.discounted.trim() !== \"\"",
+    )
+    expect(POS).toContain("const discounted = hasDiscount ? toNumber(active.discounted) : null")
+  })
+
+  it("applies the same rule to what is shown on screen", () => {
+    // Otherwise the till displays a struck-through total that does not exist.
+    expect(POS).toContain("active.discountTouched && active.discounted.trim()")
+  })
+
+  it("no path reads the field without checking it was touched", () => {
+    const raw = POS.match(/active\.discounted\.trim\(\) \? toNumber/g) || []
+    expect(raw.length).toBe(0)
+  })
+})

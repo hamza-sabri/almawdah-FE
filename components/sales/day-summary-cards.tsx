@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Banknote, Cigarette, Loader2, Smartphone, Wallet } from "lucide-react"
 
 import { salesDaySummary } from "@/api/sales"
+import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { formatMoney, formatNumber } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -129,32 +130,16 @@ export function DaySummaryCards() {
         </button>
       ))}
       <span className="mx-1 text-muted-foreground/50">|</span>
-      <input
-        type="date"
-        value={from}
-        onChange={(e) => setFrom(e.target.value)}
-        aria-label="من تاريخ"
-        className="h-7 rounded-lg border bg-card px-2 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+      {/* One field for both ends. Two separate date boxes let a cashier set an
+          end before a start, or set one and wonder why nothing changed. */}
+      <DateRangePicker
+        value={{ from, to }}
+        onChange={(r) => {
+          setFrom(r.from)
+          setTo(r.to)
+        }}
+        placeholder="فترة مخصصة"
       />
-      <input
-        type="date"
-        value={to}
-        onChange={(e) => setTo(e.target.value)}
-        aria-label="إلى تاريخ"
-        className="h-7 rounded-lg border bg-card px-2 text-xs outline-none focus:ring-2 focus:ring-primary/30"
-      />
-      {ranged && (
-        <button
-          type="button"
-          onClick={() => {
-            setFrom("")
-            setTo("")
-          }}
-          className="rounded-full px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-        >
-          مسح
-        </button>
-      )}
       {isFetching && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
     </div>
   )

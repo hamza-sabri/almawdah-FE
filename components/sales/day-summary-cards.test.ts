@@ -65,10 +65,12 @@ describe("the period filter", () => {
     expect(CARD).toContain('{ key: "month"')
   })
 
-  it("offers a hand-picked range too", () => {
-    expect(CARD).toContain('type="date"')
-    expect(CARD).toContain('aria-label="من تاريخ"')
-    expect(CARD).toContain('aria-label="إلى تاريخ"')
+  it("offers a hand-picked range as ONE field", () => {
+    // Two native date boxes let a cashier set an end before a start, or set
+    // one and wonder why nothing changed — and they render in the browser's
+    // locale rather than the shop's.
+    expect(CARD).toContain("<DateRangePicker")
+    expect(CARD).not.toContain('type="date"')
   })
 
   it("only applies a range once BOTH ends are set", () => {
@@ -85,6 +87,35 @@ describe("the period filter", () => {
     // Not with the chip that happens to be selected — those disagree for the
     // moment between a click and the response landing.
     expect(CARD).toContain("windowLabel(data.period, data.cutover_hour)")
+  })
+})
+
+describe("the range picker itself", () => {
+  const PICKER = readFileSync(
+    path.resolve(__dirname, "../ui/date-range-picker.tsx"),
+    "utf8",
+  )
+
+  it("reports a range only once BOTH ends are chosen", () => {
+    // A half-made range must never be mistaken for a filter.
+    expect(PICKER).toContain("if (!anchor) {")
+    expect(PICKER).toContain("onChange({ from, to })")
+  })
+
+  it("reads a backwards pick the way round it was plainly meant", () => {
+    expect(PICKER).toContain("anchor <= day ? [anchor, day] : [day, anchor]")
+  })
+
+  it("abandons a half-pick when the popover closes", () => {
+    // Otherwise a dangling start silently changes what the next click means.
+    expect(PICKER).toContain("if (!o) setAnchor(null)")
+  })
+
+  it("adds no date library — the RTL calendar is already here", () => {
+    // The comment explains the choice; strip comments before judging imports.
+    const code = PICKER.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")
+    expect(code).not.toContain("react-day-picker")
+    expect(code).toContain("AR_MONTHS")
   })
 })
 
