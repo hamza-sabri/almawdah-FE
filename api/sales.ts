@@ -207,6 +207,8 @@ export const salesDelete = (id: number) =>
 export type DaySummary = {
   day_start: string
   day_end: string
+  /** Which window these figures cover: day | week | month | custom. */
+  period: string
   cutover_hour: number
   total: { amount: string; count: number }
   groups: Array<{
@@ -226,8 +228,10 @@ export type DaySummary = {
   }>
 }
 
-export const salesDaySummary = () =>
-  customFetch<{ data: DaySummary }>(`/api/v1/sales/day_summary/`)
+export const salesDaySummary = (params: Record<string, string> = {}) =>
+  customFetch<{ data: DaySummary }>(
+    `/api/v1/sales/day_summary/${qs(params)}`,
+  )
 
 export const salesStats = () =>
   customFetch<{ data: SalesStats }>(`/api/v1/sales/stats/`)

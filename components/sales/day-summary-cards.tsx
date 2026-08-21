@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Banknote, Cigarette, Loader2, Smartphone, Wallet } from "lucide-react"
 
@@ -8,22 +9,39 @@ import { formatMoney, formatNumber } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 /**
- * What the owner wants at a glance when he opens the sales page.
+ * What the owner opens the sales page for: جوال, دخان, and the takings.
  *
- * Three numbers, above the table: phone credit, cigarettes, and the day's
- * total. He does not want to filter, sort or read a chart to get them — he
- * wants to walk past the screen and know.
- *
- * "Today" is the TRADING day, not the calendar one. The shop is still selling
- * at 1am and cashes up in the morning, so a sale rung at 00:30 belongs to the
- * day that is still running. The rollover hour is decided by the server and
- * applied in the shop's timezone; nothing here computes a date, because a till
- * with a wrong clock would then quietly disagree with the owner's books.
+ * The window is the TRADING day, not the calendar one. The shop is still
+ * selling at 1am and cashes up in the morning, so a sale rung at 00:30 belongs
+ * to the day that is still running. Every preset here — day, week, month, or a
+ * hand-picked range — starts and ends on that same rollover, which the SERVER
+ * owns. Nothing on this page computes a date: a till with a wrong clock would
+ * otherwise report a different period than the owner's books, silently.
  */
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   topup: Smartphone,
   smoke: Cigarette,
+}
+
+const PRESETS = [
+  { key: "day", label: "اليوم" },
+  { key: "week", label: "آخر ٧ أيام" },
+  { key: "month", label: "هذا الشهر" },
+] as const
+
+/** What the figures below are counting, in words. */
+function windowLabel(period: string, cutoverHour: number): string {
+  switch (period) {
+    case "week":
+      return "آخر ٧ أيام"
+    case "month":
+      return "هذا الشهر"
+    case "custom":
+      return "الفترة المحددة"
+    default:
+      return `منذ الساعة ${cutoverHour}:00 صباحاً`
+  }
 }
 
 function Card({
@@ -73,44 +91,108 @@ function Card({
 }
 
 export function DaySummaryCards() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["sales-day-summary"],
-    queryFn: () => salesDaySummary().then((r) => r.data),
+  const [period, setPeriod] = useState<string>("day")
+  const [from, setFrom] = useState("")
+  const [to, setTo] = useState("")
+  // A range only counts once BOTH ends are set — a half-filled picker would
+  // otherwise silently fall back to "today" while the inputs say otherwise.
+  const ranged = Boolean(from && to)
+  const params: Record<string, string> = ranged ? { from, to } : { period }
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ["sales-day-summary", ranged ? `${from}:${to}` : period],
+    queryFn: () => salesDaySummary(params).then((r) => r.data),
     // The owner leaves this page open on the office screen.
     refetchInterval: 60_000,
     staleTime: 30_000,
   })
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center gap-2 rounded-2xl border bg-card px-4 py-6 text-xs text-muted-foreground">
-        <Loader2 className="size-3.5 animate-spin" />
-        جارٍ حساب مبيعات اليوم…
-      </div>
-    )
-  }
-  if (!data) return null
-
-  const since = `منذ الساعة ${data.cutover_hour}:00 صباحاً`
+  const chips = (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {PRESETS.map((p) => (
+        <button
+          key={p.key}
+          type="button"
+          onClick={() => {
+            setPeriod(p.key)
+            setFrom("")
+            setTo("")
+          }}
+          className={cn(
+            "rounded-full border px-3 py-1 text-xs font-semibold transition",
+            !ranged && period === p.key
+              ? "border-primary bg-primary text-white"
+              : "border-border bg-card text-muted-foreground hover:border-primary/50",
+          )}
+        >
+          {p.label}
+        </button>
+      ))}
+      <span className="mx-1 text-muted-foreground/50">|</span>
+      <input
+        type="date"
+        value={from}
+        onChange={(e) => setFrom(e.target.value)}
+        aria-label="من تاريخ"
+        className="h-7 rounded-lg border bg-card px-2 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+      />
+      <input
+        type="date"
+        value={to}
+        onChange={(e) => setTo(e.target.value)}
+        aria-label="إلى تاريخ"
+        className="h-7 rounded-lg border bg-card px-2 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+      />
+      {ranged && (
+        <button
+          type="button"
+          onClick={() => {
+            setFrom("")
+            setTo("")
+          }}
+          className="rounded-full px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          مسح
+        </button>
+      )}
+      {isFetching && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+    </div>
+  )
 
   return (
-    <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-      {data.groups.map((g) => (
-        <Card
-          key={g.key}
-          label={g.label}
-          amount={formatMoney(g.amount)}
-          sub={`${formatNumber(g.count)} فاتورة · ${since}`}
-          Icon={ICONS[g.key] ?? Wallet}
-        />
-      ))}
-      <Card
-        label="إجمالي مبيعات اليوم"
-        amount={formatMoney(data.total.amount)}
-        sub={`${formatNumber(data.total.count)} فاتورة · ${since}`}
-        Icon={Banknote}
-        accent
-      />
+    <div className="space-y-2.5">
+      {chips}
+      {isLoading || !data ? (
+        <div className="flex items-center justify-center gap-2 rounded-2xl border bg-card px-4 py-6 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" />
+          جارٍ حساب المبيعات…
+        </div>
+      ) : (
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          {data.groups.map((g) => {
+            const since = windowLabel(data.period, data.cutover_hour)
+            return (
+              <Card
+                key={g.key}
+                label={g.label}
+                amount={formatMoney(g.amount)}
+                sub={`${formatNumber(g.count)} فاتورة · ${since}`}
+                Icon={ICONS[g.key] ?? Wallet}
+              />
+            )
+          })}
+          <Card
+            // Deliberately NOT "مبيعات اليوم": the same card now shows a week,
+            // a month or a hand-picked range, and a label that says "اليوم"
+            // over a month's takings is a number the owner would misread.
+            label="إجمالي المبيعات"
+            amount={formatMoney(data.total.amount)}
+            sub={`${formatNumber(data.total.count)} فاتورة · ${windowLabel(data.period, data.cutover_hour)}`}
+            Icon={Banknote}
+            accent
+          />
+        </div>
+      )}
     </div>
   )
 }

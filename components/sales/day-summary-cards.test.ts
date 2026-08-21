@@ -24,7 +24,7 @@ describe("where the day boundary is decided", () => {
   it("comes from the server, never computed on the till", () => {
     // A till with a wrong clock or timezone would otherwise report a different
     // day than the owner's books, silently.
-    expect(CARD).toContain("salesDaySummary()")
+    expect(CARD).toContain("salesDaySummary(params)")
     expect(CARD).not.toMatch(/new Date\(/)
     expect(CARD).not.toContain("setHours")
   })
@@ -39,7 +39,11 @@ describe("where the day boundary is decided", () => {
 describe("the cards", () => {
   it("renders every group the server sends, plus the total", () => {
     expect(CARD).toContain("data.groups.map")
-    expect(CARD).toContain("إجمالي مبيعات اليوم")
+    // NOT "مبيعات اليوم": the same card now shows a week, a month or a
+    // hand-picked range, and a label saying "اليوم" over a month's takings is
+    // a number the owner would misread.
+    expect(CARD).toContain('label="إجمالي المبيعات"')
+    expect(CARD).not.toContain("إجمالي مبيعات اليوم")
   })
 
   it("does not hardcode which groups exist", () => {
@@ -51,6 +55,36 @@ describe("the cards", () => {
 
   it("refreshes on its own — the office screen stays open all day", () => {
     expect(CARD).toContain("refetchInterval")
+  })
+})
+
+describe("the period filter", () => {
+  it("offers day, week and month", () => {
+    expect(CARD).toContain('{ key: "day", label: "اليوم" }')
+    expect(CARD).toContain('{ key: "week"')
+    expect(CARD).toContain('{ key: "month"')
+  })
+
+  it("offers a hand-picked range too", () => {
+    expect(CARD).toContain('type="date"')
+    expect(CARD).toContain('aria-label="من تاريخ"')
+    expect(CARD).toContain('aria-label="إلى تاريخ"')
+  })
+
+  it("only applies a range once BOTH ends are set", () => {
+    // A half-filled picker would silently fall back to "today" while the
+    // inputs on screen said otherwise.
+    expect(CARD).toContain("const ranged = Boolean(from && to)")
+  })
+
+  it("keeps each window's figures under their own cache key", () => {
+    expect(CARD).toContain('queryKey: ["sales-day-summary", ranged ? `${from}:${to}` : period]')
+  })
+
+  it("labels the figures with the window the SERVER reports", () => {
+    // Not with the chip that happens to be selected — those disagree for the
+    // moment between a click and the response landing.
+    expect(CARD).toContain("windowLabel(data.period, data.cutover_hour)")
   })
 })
 

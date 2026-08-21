@@ -51,7 +51,6 @@ import { EmptyState, ErrorState } from "@/components/states"
 import { NoMedsArt } from "@/components/illustrations"
 import { MedicationForm } from "@/components/forms/product-form"
 import { VariantsManager } from "@/components/variants-manager"
-import { BoxDialog } from "@/components/inventory/box-dialog"
 import { PrintLabelDialog } from "@/components/print/print-label-dialog"
 import { ConfirmDelete } from "@/components/confirm-delete"
 import {
@@ -207,13 +206,17 @@ function MedCard({
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            {/* One click to say "this also comes in a box". Filled when it
-                already has one, so the whole grid is scannable at a glance. */}
+            {/* Straight to the form that holds the product's boxes — plural.
+                A product can come in several: a 24, a 12, a different flavour,
+                each with its own barcode, price and piece count. This used to
+                open a single-box dialog, so a second box meant hunting through
+                the row menu into «الأنواع». The icon is filled when the product
+                already has one, so the grid reads at a glance. */}
             <button
               type="button"
               onClick={onBox}
-              title={hasBox ? "تعديل العبوة" : "إضافة عبوة"}
-              aria-label={hasBox ? "تعديل العبوة" : "إضافة عبوة"}
+              title={hasBox ? "تعديل العبوات" : "إضافة عبوة"}
+              aria-label={hasBox ? "تعديل العبوات" : "إضافة عبوة"}
               className={cn(
                 "grid size-8 place-items-center rounded-full shadow-sm backdrop-blur-sm transition",
                 hasBox
@@ -371,7 +374,6 @@ function MedicationsPageInner() {
   const [toDelete, setToDelete] = useState<Product | null>(null)
   const [toLabel, setToLabel] = useState<Product | null>(null)
   const [toVariants, setToVariants] = useState<Product | null>(null)
-  const [toBox, setToBox] = useState<Product | null>(null)
   const [deleting, setDeleting] = useState(false)
   const isOwner = useIsOwner()
   const [selectMode, setSelectMode] = useState(false)
@@ -749,7 +751,7 @@ function MedicationsPageInner() {
                 onDelete={() => setToDelete(m)}
                 onPrintLabel={() => setToLabel(m)}
                 onVariants={() => setToVariants(m)}
-                onBox={() => setToBox(m)}
+                onBox={() => setToVariants(m)}
                 selectMode={selectMode}
                 selected={selected.has(m.id)}
                 onToggleSelect={() => toggleSelect(m.id)}
@@ -782,14 +784,6 @@ function MedicationsPageInner() {
             : undefined
         }
       />
-      <BoxDialog
-        open={Boolean(toBox)}
-        onOpenChange={(v) => !v && setToBox(null)}
-        productId={toBox?.id ?? null}
-        productName={toBox?.name ?? ""}
-        piecePrice={toBox?.price ?? 0}
-      />
-
       <VariantsManager
         open={Boolean(toVariants)}
         onOpenChange={(o) => !o && setToVariants(null)}
