@@ -1,6 +1,6 @@
 "use client"
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 
 type PageBody<T> = {
   count: number
@@ -11,6 +11,16 @@ type PageBody<T> = {
 
 /** The generated orval "fetch" functions resolve to a { data } envelope. */
 type ListResponse<T> = { data: PageBody<T> }
+
+/** Shallow-equal on the filter object that identifies the query. */
+function sameParams(a: unknown, b: Record<string, unknown>): boolean {
+  if (!a || typeof a !== "object") return false
+  const x = a as Record<string, unknown>
+  const ka = Object.keys(x)
+  const kb = Object.keys(b)
+  if (ka.length !== kb.length) return false
+  return kb.every((k) => x[k] === b[k])
+}
 
 /**
  * Classic page-number pagination over a generated `xxxList` fetcher.
@@ -26,11 +36,24 @@ export function usePagedList<T>(
   pageSize: number,
   enabled = true,
 ) {
+  const queryKey = [...keyBase, "paged", params, page]
+
   const query = useQuery({
-    queryKey: [...keyBase, "paged", params, page],
+    queryKey,
     queryFn: () => fetcher({ ...params, page, page_size: pageSize }),
     enabled,
-    placeholderData: keepPreviousData,
+    // keepPreviousData, but ONLY across a page change of the SAME query.
+    //
+    // Plain `keepPreviousData` also holds the previous rows when the FILTER
+    // changes, and on /customers/[id] the filter is `{ customer: id }` — so
+    // walking from one customer to the next showed the previous customer's
+    // debts under the new customer's name, and a customer with none left the
+    // page looking like the customer before them. Money on the wrong person's
+    // screen is worse than a spinner.
+    placeholderData: (prev, prevQuery) => {
+      const prevParams = prevQuery?.queryKey?.[keyBase.length + 1]
+      return sameParams(prevParams, params) ? prev : undefined
+    },
   })
 
   const results = query.data?.data.results ?? []

@@ -70,11 +70,44 @@ function isCacheableSalesList(url: string): boolean {
   return page === 1
 }
 
+/**
+ * Debts have exactly the same one-slot problem as sales, and it bites harder:
+ * the customer page asks for `/debts/?customer=4`. If that response were
+ * written into the single `read:debts:list` slot, the next offline read of the
+ * DEBTS PAGE would show only customer 4's rows — and, worse, opening customer 7
+ * would be served customer 4's debts, because the reader had no idea the cached
+ * copy was filtered.
+ *
+ * So: only the unfiltered first page earns the shared slot. Everything else is
+ * reconstructed by the reader from that base, which knows what was asked for.
+ */
+const DEBTS_FILTER_PARAMS = ["customer", "is_paid", "search"]
+
+function isCacheableDebtsList(url: string): boolean {
+  const u = new URL(url, "http://x")
+  if (DEBTS_FILTER_PARAMS.some((p) => u.searchParams.get(p))) return false
+  const page = Number(u.searchParams.get("page")) || 1
+  return page === 1
+}
+
+/**
+ * `read:customers:list` is read back by the customer-detail offline path, so a
+ * `?search=` response must not be allowed to shrink it to one row.
+ */
+function isCacheableCustomersList(url: string): boolean {
+  const u = new URL(url, "http://x")
+  if (u.searchParams.get("search")) return false
+  const page = Number(u.searchParams.get("page")) || 1
+  return page === 1
+}
+
 /** Write-through cache for a successful online GET. */
 export async function cacheReadResponse(url: string, data: unknown): Promise<void> {
   const k = keyFor(url)
   if (!k || data === undefined) return
   if (k === "read:sales:list" && !isCacheableSalesList(url)) return
+  if (k === "read:debts:list" && !isCacheableDebtsList(url)) return
+  if (k === "read:customers:list" && !isCacheableCustomersList(url)) return
   try {
     await idbPut(STORE_KV, { at: Date.now(), data }, k)
   } catch {
@@ -333,16 +366,85 @@ export async function localReadResponse<T>(url: string): Promise<T | null> {
 
   if (k === "read:debts:list") {
     const u = new URL(url, "http://x")
-    const local =
+    const base = await cached<{ results?: Debt[] }>(k)
+    const queued =
       u.searchParams.get("is_paid") === "true" ? [] : await queuedAsDebts()
-    const prev = (await cached<{ results?: Debt[] }>(k))?.results ?? []
-    const results = [...local, ...prev]
-    return ok({ count: results.length, next: null, previous: null, results }) as T
+
+    // NOTHING cached and nothing queued means we have no idea what this
+    // customer owes. Returning an empty list here is what put "لا توجد ديون"
+    // on the page of a customer holding ₪18,870 — an empty answer and "I don't
+    // know" are not the same thing, and only one of them is safe to show above
+    // a money figure. `null` falls through to the network / the page's error
+    // state instead.
+    if (!base && queued.length === 0) return null
+
+    type Row = Debt & {
+      customer?: number | null
+      customer_name?: string
+      customer_phone?: string
+      note?: string
+      is_paid?: boolean
+      created_at?: string
+    }
+    let rows = [...queued, ...(base?.results ?? [])] as Row[]
+
+    // The customer page asks for ONE customer. Serving it the whole cached
+    // list would show other people's debts under this customer's name.
+    const customer = u.searchParams.get("customer")
+    if (customer) {
+      const want = Number(customer)
+      // A cached row with no customer id can't be proven to belong here, so it
+      // is dropped rather than guessed at.
+      rows = rows.filter((d) => Number(d.customer) === want)
+    }
+
+    const isPaid = u.searchParams.get("is_paid")
+    if (isPaid === "true") rows = rows.filter((d) => Boolean(d.is_paid))
+    else if (isPaid === "false") rows = rows.filter((d) => !d.is_paid)
+
+    const term = (u.searchParams.get("search") || "").trim().toLowerCase()
+    if (term)
+      rows = rows.filter(
+        (d) =>
+          (d.customer_name || "").toLowerCase().includes(term) ||
+          (d.customer_phone || "").includes(term) ||
+          (d.note || "").toLowerCase().includes(term),
+      )
+
+    const ordering = u.searchParams.get("ordering") || "-created_at"
+    const desc = ordering.startsWith("-")
+    const field = desc ? ordering.slice(1) : ordering
+    if (field === "created_at" || field === "discounted_total" || field === "total") {
+      rows = [...rows].sort((a, b) => {
+        const d =
+          field === "created_at"
+            ? (a.created_at || "").localeCompare(b.created_at || "")
+            : Number(a[field as "total" | "discounted_total"]) -
+              Number(b[field as "total" | "discounted_total"])
+        return desc ? -d : d
+      })
+    }
+
+    // Paginate like the server, or page 2 of a customer's debts silently
+    // repeats page 1.
+    const pageSize = Number(u.searchParams.get("page_size")) || 30
+    const page = Number(u.searchParams.get("page")) || 1
+    const start = (page - 1) * pageSize
+    return ok({
+      count: rows.length,
+      next: start + pageSize < rows.length ? `http://x/?page=${page + 1}` : null,
+      previous: page > 1 ? `http://x/?page=${page - 1}` : null,
+      results: rows.slice(start, start + pageSize) as Debt[],
+    }) as T
   }
 
   if (k === "read:debts:dashboard") {
-    const base = (await cached<ApiDashboard>(k)) ?? EMPTY_DASHBOARD
+    const stored = await cached<ApiDashboard>(k)
     const q = await queuedDebtSales()
+    // A dashboard that says ₪0.00 outstanding because it has never been
+    // cached is a lie about money. Only answer when we have something real.
+    if (!stored && q.length === 0) return null
+    const base = stored ?? EMPTY_DASHBOARD
     if (q.length === 0) return ok(base) as T
     const extra = q.reduce((s, x) => s + x.discountedTotal, 0)
     return ok({
@@ -353,10 +455,11 @@ export async function localReadResponse<T>(url: string): Promise<T | null> {
   }
 
   if (k === "read:customers:list") {
-    const base =
-      (await cached<{
-        results?: Array<{ id: number; name: string; phone?: string }>
-      }>(k)) ?? { results: [] }
+    const base = await cached<{
+      results?: Array<{ id: number; name: string; phone?: string }>
+    }>(k)
+    // Never cached => "I don't know", not "you have no customers".
+    if (!base) return null
     const u = new URL(url, "http://x")
     const search = (u.searchParams.get("search") || "").trim().toLowerCase()
     let results = base.results ?? []
@@ -441,8 +544,10 @@ export async function localReadResponse<T>(url: string): Promise<T | null> {
   }
 
   if (k === "read:sales:stats") {
-    const base = (await cached<SalesStats>(k)) ?? EMPTY_STATS
+    const stored = await cached<SalesStats>(k)
     const q = await listQueuedSales()
+    if (!stored && q.length === 0) return null
+    const base = stored ?? EMPTY_STATS
     let amt = 0
     let cash = 0
     let debt = 0

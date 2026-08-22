@@ -41,7 +41,9 @@ function windowLabel(period: string, cutoverHour: number): string {
     case "custom":
       return "الفترة المحددة"
     default:
-      return `منذ الساعة ${cutoverHour}:00 صباحاً`
+      // A rollover of 0 IS the calendar day — "منذ الساعة 0:00" is a clumsy
+      // way of writing "today".
+      return cutoverHour === 0 ? "اليوم" : `منذ الساعة ${cutoverHour}:00 صباحاً`
   }
 }
 

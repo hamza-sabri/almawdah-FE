@@ -19,6 +19,7 @@ import type { Customer, Debt } from "@/api/generated/model"
 import { usePagedList } from "@/hooks/use-paged-list"
 import { useDebtPayment } from "@/hooks/use-debt-payment"
 import { ENDPOINTS, remove } from "@/lib/mutate"
+import { hasModule, useModules } from "@/lib/modules"
 import { formatMoney, toNumber } from "@/lib/format"
 import { customerSettle } from "@/api/sales"
 
@@ -41,6 +42,11 @@ export default function CustomerDetailPage() {
   const routeParams = useParams<{ id: string }>()
   const id = Number(routeParams?.id)
   const qc = useQueryClient()
+  // The debts ledger is a paid module. Without it /debts/ answers 403, and a
+  // 403 rendered as "لا توجد ديون" is how the owner of سوبر ماركت المودة came
+  // to read ₪0 of debt under a balance of ₪18,870. Say which it is.
+  const { modules } = useModules()
+  const canSeeDebts = hasModule(modules, "debts")
 
   const [editOpen, setEditOpen] = useState(false)
   const [debtFormOpen, setDebtFormOpen] = useState(false)
@@ -94,13 +100,15 @@ export default function CustomerDetailPage() {
     pageCount,
     isLoading: debtsLoading,
     isFetching: debtsFetching,
+    isError: debtsError,
+    refetch: refetchDebts,
   } = usePagedList<DebtRow>(
     ["debts"],
     debtsList,
     { customer: id, ordering: "-created_at" },
     page,
     PAGE_SIZE,
-    Number.isFinite(id),
+    Number.isFinite(id) && canSeeDebts,
   )
 
   async function confirmDeleteDebt() {
@@ -215,19 +223,28 @@ export default function CustomerDetailPage() {
 
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-heading font-bold">الديون</h2>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingDebt(null)
-                setDebtFormOpen(true)
-              }}
-            >
-              <PlusCircle className="size-4" />
-              دين جديد
-            </Button>
+            {canSeeDebts && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingDebt(null)
+                  setDebtFormOpen(true)
+                }}
+              >
+                <PlusCircle className="size-4" />
+                دين جديد
+              </Button>
+            )}
           </div>
 
-          {debtsLoading && (
+          {!canSeeDebts && (
+            <EmptyState
+              art={<NoDebtsArt className="h-32 w-auto" />}
+              title="سجل الديون غير مفعّل لهذا الحساب"
+              description="الرصيد أعلاه صحيح، لكن عرض تفاصيل الديون يحتاج تفعيل وحدة «الديون» لهذا الحساب."
+            />
+          )}
+          {canSeeDebts && debtsLoading && (
             <div className="space-y-2">
               <Skeleton className="h-12 rounded-xl" />
               {Array.from({ length: 4 }).map((_, i) => (
@@ -235,14 +252,20 @@ export default function CustomerDetailPage() {
               ))}
             </div>
           )}
-          {!debtsLoading && debts.length === 0 && (
+          {/* A failed fetch must never read as "this customer owes nothing".
+              The two states look identical to a cashier, and only one of them
+              is safe to act on. */}
+          {canSeeDebts && !debtsLoading && debtsError && (
+            <ErrorState onRetry={() => refetchDebts()} />
+          )}
+          {canSeeDebts && !debtsLoading && !debtsError && debts.length === 0 && (
             <EmptyState
               art={<NoDebtsArt className="h-32 w-auto" />}
               title="لا توجد ديون"
               description="أضف أول دين لهذا الزبون"
             />
           )}
-          {!debtsLoading && debts.length > 0 && (
+          {canSeeDebts && !debtsLoading && !debtsError && debts.length > 0 && (
             <div className="flex flex-col gap-3">
               <DebtsTable
                 debts={debts}
